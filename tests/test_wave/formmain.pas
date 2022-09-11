@@ -57,8 +57,18 @@ begin
 end;
 
 procedure TfrmMain.drawtimerTimer(Sender : TObject);
+var
+  n : integer;
+  w : TDataWave;
 begin
-  //scene.Repaint;
+  t := t + 1;
+  w := waves[0];
+  w.shp.x := -1000 + 1000*sin(t / 20);
+  for n := 1 to 2 do
+  begin
+    waves[n].shp.x := w.shp.x;
+  end;
+  scene.Repaint;
 end;
 
 procedure TfrmMain.FormCreate(Sender : TObject);
@@ -77,9 +87,11 @@ begin
   for n := 0 to 2 do
   begin
     w := TDataWave.Create(grp);
-    w.GenerateRandomData(10);
+    w.GenerateRandomData(100000);
     w.shp.y := 80 * (n + 1);
     w.shp.x := 10;
+    w.shp.alpha := 0.6;
+    w.shp.scalex := 100000 / length(w.data);
     insert(w, waves, length(waves));
   end;
 
@@ -93,7 +105,7 @@ begin
   tria.y := 200;
   tria.scalex := 100;
   tria.scaley := 100;
-  tria.alpha := 0.5;
+  tria.alpha := 0.1;
   tria.rotation := 0;
   tria.SetColor(1, 0, 0, 1);
 

@@ -68,7 +68,7 @@ begin
   SetLength(varr, vcnt);
   for i := 0 to vcnt - 1 do
   begin
-    v[0] := i * 10;
+    v[0] := i;
     v[1] := 50 * data[i];
     varr[i] := v;
   end;
