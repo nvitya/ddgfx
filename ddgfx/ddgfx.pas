@@ -159,6 +159,7 @@ type
     destructor Destroy; override;
 
     function AddPrimitive(amode : GLint; avertcount : integer; avertdata : PVertex) : TPrimitive;
+    procedure Clear(); // removes all primitives
 
     procedure SetColor(r, g, b : TddFloat); overload;
     procedure SetColor(r, g, b, a : TddFloat); overload;
@@ -592,7 +593,7 @@ begin
   if not bufferok then UpdateBuffer();
 
   glBindVertexArray(vao);
-  glDrawArrays(drawmode, 0, vertexcount * 2);
+  glDrawArrays(drawmode, 0, vertexcount); // * 2);
 end;
 
 procedure TPrimitive.UpdateBuffer;
@@ -677,11 +678,8 @@ begin
 end;
 
 destructor TShape.Destroy;
-var
-  p : TPrimitive;
 begin
-  for p in primitives do p.Free;
-  SetLength(primitives, 0);
+  Clear;
   inherited Destroy;
 end;
 
@@ -691,6 +689,14 @@ begin
 
   SetLength(primitives, length(primitives) + 1);
   primitives[length(primitives) - 1] := result;
+end;
+
+procedure TShape.Clear;
+var
+  p : TPrimitive;
+begin
+  for p in primitives do p.Free;
+  SetLength(primitives, 0);
 end;
 
 procedure TShape.SetColor(r, g, b : TddFloat);
@@ -894,9 +900,9 @@ begin
   OpenGLMajorVersion := 3;   // This is important in order to use OpenGL Context 3.3
   OpenGLMinorVersion := 3;
 
-  bgcolor.r := 0.4;
-  bgcolor.g := 0.4;
-  bgcolor.b := 0.2;
+  bgcolor.r := 0;
+  bgcolor.g := 0;
+  bgcolor.b := 0;
   bgcolor.a := 1;
 
   InitOpenGL;

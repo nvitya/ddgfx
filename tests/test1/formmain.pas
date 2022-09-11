@@ -68,7 +68,7 @@ begin
   begin
     cgr.alpha := 1 - a * 0.2 + 0.5* sin(a * t / 50);
 
-    cgr.scalex := sin(t / 100);
+    cgr.scalex := sin((a + 1) * t / 100);
     Inc(a);
   end;
 
@@ -96,6 +96,10 @@ begin
   SetLength(grarr, 0);
 
   scene := TddScene.Create(self, oglpanel);
+
+  scene.bgcolor.r := 0.4;
+  scene.bgcolor.g := 0.4;
+  scene.bgcolor.b := 0.2;
 
   shp := TShape.Create(nil);
   shp.AddPrimitive(GL_TRIANGLES, 3, @triangle_verts[0]);
