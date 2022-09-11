@@ -7,7 +7,7 @@
       <Unit>
         <Filename Value="ddgfx_test1.lpr"/>
         <IsPartOfProject Value="True"/>
-        <UsageCount Value="20"/>
+        <UsageCount Value="22"/>
       </Unit>
       <Unit>
         <Filename Value="formmain.pas"/>
@@ -17,22 +17,84 @@
         <ResourceBaseClass Value="Form"/>
         <UnitName Value="formMain"/>
         <IsVisibleTab Value="True"/>
-        <CursorPos X="70" Y="17"/>
-        <UsageCount Value="20"/>
+        <TopLine Value="29"/>
+        <CursorPos X="34" Y="75"/>
+        <UsageCount Value="22"/>
         <Loaded Value="True"/>
         <LoadedDesigner Value="True"/>
       </Unit>
       <Unit>
         <Filename Value="ddgfx.pas"/>
         <IsPartOfProject Value="True"/>
-        <UsageCount Value="20"/>
+        <UsageCount Value="22"/>
       </Unit>
       <Unit>
         <Filename Value="d2gfx_test1.lpr"/>
         <UsageCount Value="20"/>
       </Unit>
+      <Unit>
+        <Filename Value="../../ddgfx/ddgfx.pas"/>
+        <WindowIndex Value="1"/>
+        <TopLine Value="818"/>
+        <CursorPos X="3" Y="948"/>
+        <UsageCount Value="10"/>
+        <Loaded Value="True"/>
+      </Unit>
     </Units>
-    <JumpHistory HistoryIndex="-1"/>
+    <JumpHistory HistoryIndex="12">
+      <Position>
+        <Filename Value="formmain.pas"/>
+        <Caret Line="17" Column="70"/>
+      </Position>
+      <Position>
+        <Filename Value="formmain.pas"/>
+        <Caret Line="22" Column="19"/>
+      </Position>
+      <Position>
+        <Filename Value="formmain.pas"/>
+        <Caret Line="101" Column="3" TopLine="3"/>
+      </Position>
+      <Position>
+        <Filename Value="formmain.pas"/>
+        <Caret Line="54" Column="18" TopLine="12"/>
+      </Position>
+      <Position>
+        <Filename Value="formmain.pas"/>
+        <Caret Line="64" Column="25" TopLine="28"/>
+      </Position>
+      <Position>
+        <Filename Value="formmain.pas"/>
+        <Caret Line="40" Column="35"/>
+      </Position>
+      <Position>
+        <Filename Value="../../ddgfx/ddgfx.pas"/>
+        <Caret Line="243" Column="20" TopLine="163"/>
+      </Position>
+      <Position>
+        <Filename Value="../../ddgfx/ddgfx.pas"/>
+        <Caret Line="946" Column="3" TopLine="878"/>
+      </Position>
+      <Position>
+        <Filename Value="../../ddgfx/ddgfx.pas"/>
+        <Caret Line="243" Column="15" TopLine="194"/>
+      </Position>
+      <Position>
+        <Filename Value="formmain.pas"/>
+        <Caret Line="68" Column="26" TopLine="25"/>
+      </Position>
+      <Position>
+        <Filename Value="formmain.pas"/>
+        <Caret Line="29" Column="42" TopLine="10"/>
+      </Position>
+      <Position>
+        <Filename Value="formmain.pas"/>
+        <Caret Line="37" Column="28" TopLine="16"/>
+      </Position>
+      <Position>
+        <Filename Value="formmain.pas"/>
+        <Caret Line="79" Column="41" TopLine="39"/>
+      </Position>
+    </JumpHistory>
     <RunParams>
       <FormatVersion Value="2"/>
       <Modes ActiveMode=""/>

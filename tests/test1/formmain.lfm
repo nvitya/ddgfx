@@ -7,6 +7,7 @@ object frmMain: TfrmMain
   ClientHeight = 471
   ClientWidth = 631
   OnCreate = FormCreate
+  OnDestroy = FormDestroy
   Position = poScreenCenter
   LCLVersion = '2.2.0.4'
   object pnl: TPanel
@@ -39,6 +40,12 @@ object frmMain: TfrmMain
     BorderSpacing.Bottom = 4
     BevelOuter = bvNone
     TabOrder = 1
-    OnClick = oglpanelClick
+  end
+  object drawtimer: TTimer
+    Enabled = False
+    Interval = 10
+    OnTimer = drawtimerTimer
+    Left = 163
+    Top = 433
   end
 end
