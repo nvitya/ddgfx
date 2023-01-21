@@ -1,9 +1,9 @@
 object frmMain: TfrmMain
-  Left = 809
+  Left = 1505
   Height = 471
-  Top = 115
+  Top = 677
   Width = 631
-  Caption = 'ddgfx Test - 1'
+  Caption = 'ddgfx Test Bitmap'
   ClientHeight = 471
   ClientWidth = 631
   OnCreate = FormCreate

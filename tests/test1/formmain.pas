@@ -113,30 +113,30 @@ begin
 
   grp := TDrawGroup.Create(nil);
 
-  csh := TClonedShape.Create(grp, shp);
+  csh := grp.CloneShape(shp);
 
-  csh := TClonedShape.Create(grp, shp);
+  csh := grp.CloneShape(shp);
   csh.x += 50;
   csh.rotation := 20;
   csh.SetColor(0, 1, 0, 0.4);
 
-  csh := TClonedShape.Create(grp, shp);
+  csh := grp.CloneShape(shp);
   csh.x += 70;
   csh.rotation := 30;
   csh.SetColor(0, 0, 1, 0.4);
 
-  cgr := TClonedGroup.Create(scene.root, grp);
+  cgr := scene.root.CloneGroup(grp);
   cgr.x := 100;
   cgr.y := 100;
   insert(cgr, grarr, length(grarr) + 1);
 
-  cgr := TClonedGroup.Create(scene.root, grp);
+  cgr := scene.root.CloneGroup(grp);
   cgr.x := 200;
   cgr.y := 150;
   cgr.alpha := 0.5;
   insert(cgr, grarr, length(grarr) + 1);
 
-  cgr := TClonedGroup.Create(scene.root, grp);
+  cgr := scene.root.CloneGroup(grp);
   cgr.x := 300;
   cgr.y := 170;
   cgr.alpha := 0.3;

@@ -31,7 +31,7 @@ unit ddgfx;
 interface
 
 uses
-  Classes, SysUtils, Controls, dglOpenGL, OpenGLContext;
+  Classes, SysUtils, Controls, dglOpenGL, OpenGLContext, util_nstime;
 
 type
   TddFloat    = TGLfloat;
@@ -59,6 +59,7 @@ type
   PVertex = PddVertex;
   TColorGL = TddColorGL;
   TColorUint = TddColorUint;
+  PColorUint = ^TddColorUint;
 
 type
 
@@ -66,7 +67,7 @@ type
 
   TPrimitive = class // a primitive that can be drawn by the OpenGL directly
   public
-    drawmode  : GLint;  // GL_TRIANGLE_STRIP or GL_TRIANGLE_FAN
+    drawmode  : GLint;  // GL_LINES, GL_LINESTRIP, GL_TRIANGLE_STRIP or GL_TRIANGLE_FAN
     vertices  : array of TVertex;
     vertexcount : integer;
 
@@ -79,7 +80,6 @@ type
     vao      : TGLint;  // vertex array object
     vbo      : TGLint;  // vertex buffer object
 
-    glbuf    : TGLint;
     bufferok : boolean;
 
     procedure UpdateBuffer;
@@ -118,6 +118,21 @@ type
     procedure SetMVPMatrix(const mat : TMatrix);
     procedure SetColor(r,g,b,a : single); overload;
     procedure SetColor(const glc : TColorGL); overload;
+  end;
+
+  { TSimpleTextureShader }
+
+  TSimpleTextureShader = class(TShaderProgram)
+  private
+    Fu_MVPMatrix : TGLint;
+    Fu_Texture   : TGLint;
+    Fu_Alpha     : TGLint;
+  public
+    constructor Create; override;
+
+    procedure SetMVPMatrix(const mat : TMatrix);
+    procedure SetTexture(atexid : GLint);
+    procedure SetAlpha(aalpha : TddFloat);
   end;
 
   { TDrawable }
@@ -167,6 +182,34 @@ type
     procedure Draw(const apmatrix : TMatrix; apalpha : TddFloat); override;
   end;
 
+  { TPixmap }
+
+  TPixmap = class(TDrawable)
+  protected
+    texhandle : GLint;
+
+    vao : TGLint;  // vertex array object
+    vbo : array[0..1] of TGLint;  // vertex buffer objects: shape, texture
+
+    procedure AllocateTexture;
+
+  public
+    width  : integer;
+    height : integer;
+    needsupdate : boolean;
+    data   : PColorUint;
+
+    constructor Create(aparent : TDrawGroup; awidth, aheight : integer); reintroduce;
+    destructor Destroy; override;
+
+    procedure Clear(acolor : TColorUint);
+
+    procedure UpdateTexture;
+
+    procedure Draw(const apmatrix : TMatrix; apalpha : TddFloat); override;
+
+  end;
+
   { TClonedShape }
 
   TClonedShape = class(TDrawable)
@@ -183,10 +226,11 @@ type
     procedure Draw(const apmatrix : TMatrix; apalpha : TddFloat); override;
   end;
 
+  TClonedGroup = class;
 
   { TDrawGroup }
 
-  TDrawGroup = class(TDrawable)
+  TDrawGroup = class(TDrawable)  // owns the children = frees them on destroy
   public
     children : array of TDrawable;
 
@@ -194,8 +238,16 @@ type
     destructor Destroy; override;
 
     procedure AddChild(adr : TDrawable);
+    procedure RemoveChild(adr : TDrawable; afreeit : boolean);
 
     procedure Draw(const apmatrix : TMatrix; apalpha : TddFloat); override;
+
+
+    function NewGroup : TDrawGroup;
+    function NewShape : TShape;
+    function NewPixmap(awidth, aheight : integer) : TPixmap;
+    function CloneShape(aoriginal : TShape) : TClonedShape;
+    function CloneGroup(aoriginal : TDrawGroup) : TClonedGroup;
 
   end;
 
@@ -211,34 +263,23 @@ type
     procedure Draw(const apmatrix : TMatrix; apalpha : TddFloat); override;
   end;
 
-
-  { TddTester }
-
-  TddTester = class
-  public
-    vertices : array[0..2] of TVertex;
-    vao : TGLInt;
-    vbo : TGLInt;
-
-    constructor Create;
-
-    procedure Draw;
-  end;
-
   { TddScene }
 
   TddScene = class(TOpenGLControl) // scene root, add to the main window
+  public // render stats
+    render_time_ns : int64;
+    swap_time_ns   : int64;
   public
-
-    tst : TddTester;
 
     bgcolor : TColorGL;
 
     root : TDrawGroup;
 
+    auto_swap_buffer : boolean;
+
     mat_projection : TMatrix;
 
-    constructor Create(aowner : TComponent; aparent : TWinControl); reintroduce;
+    constructor Create(aowner : TComponent; aparent : TWinControl); virtual; reintroduce;
     destructor Destroy; override;
 
     procedure DoOnPaint; override;
@@ -255,6 +296,13 @@ type
 const
   ShaderTypeName : array[TShaderType] of string = ('vertex', 'fragment');
 
+  SimpleTextureCoordinates : array[1..8] of single = (
+    0, 0,
+    1, 0,
+    1, 1,
+    0, 1
+  );
+
 procedure ddmat_identity(out mat : TMatrix);
 procedure ddmat_mul(out mat : TMatrix; const mat1, mat2 : TMatrix); overload; // ensure that mat <> mat1 !!!
 procedure ddmat_mul(var mat : TMatrix; const mat2 : TMatrix); overload;
@@ -267,14 +315,15 @@ procedure ddmat_to_gl(out matout : TMatrixGL; const matin : TMatrix);
 procedure ddmat_set_projection(out projmat : TMatrix; awidth, aheight : single);
 
 var
-  activeshader : TShaderProgram;
-  fixcolorshader : TSimpleShader;
+  activeshader    : TShaderProgram;
+  fixcolorshader  : TSimpleShader;
+  texshader_rgba  : TSimpleTextureShader;
 
 implementation
 
 const
   attrloc_position = 0;
-  //attrloc_texcoordinate = 1;
+  attrloc_texcoordinate = 1;
 
 procedure ddmat_identity(out mat : TMatrix);
 begin
@@ -379,51 +428,6 @@ begin
   projmat[5] :=  1;  // translate y
 end;
 
-
-{ TddTester }
-
-constructor TddTester.Create;
-begin
-  vertices[0][0] := 0; vertices[0][1] := 0;
-  vertices[1][0] := 1; vertices[1][1] := 0;
-  vertices[2][0] := 1; vertices[2][1] := 1;
-
-  vao := -1;
-  vbo := -1;
-end;
-
-procedure TddTester.Draw;
-var
-  m : TMatrix;
-  i : integer;
-begin
-
-  ddmat_identity(m);
-  //ddmat_scale(m, 0.5, 0.5);
-  //ddmat_rotate(m, 30);
-  fixcolorshader.SetMVPMatrix(m);
-  fixcolorshader.SetColor(1,0,0,0.3);
-
-  if vao < 0 then
-  begin
-    glGenVertexArrays(1, @vao);
-    glGenBuffers(1, @vbo);
-
-    // Daten für das Dreieck
-    glBindVertexArray(vao);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    i := sizeof(vertices);
-    glBufferData(GL_ARRAY_BUFFER, i, @vertices[0], GL_STATIC_DRAW);
-    //glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), @vertices[0], GL_STATIC_DRAW);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 2, GL_FLOAT, False, 0, nil);
-  end;
-
-  // Zeichne Dreieck
-  glBindVertexArray(vao);
-  glDrawArrays(GL_TRIANGLES, 0, 3 * 2);
-end;
-
 { TShaderProgram }
 
 constructor TShaderProgram.Create;
@@ -436,6 +440,8 @@ end;
 
 destructor TShaderProgram.Destroy;
 begin
+  if activeshader = self then activeshader := nil;
+
   if FVSHandle <> 0 then glDeleteShader(FVSHandle);
   if FFSHandle <> 0 then glDeleteShader(FFSHandle);
   if FPrgHandle <> 0 then glDeleteProgram(FPrgHandle);
@@ -563,6 +569,66 @@ begin
   SetColor(glc.r, glc.g, glc.b, glc.a);
 end;
 
+{ TSimpleTextureShader }
+
+constructor TSimpleTextureShader.Create;
+begin
+  inherited;
+
+  CompileShader(stVertex,
+     'uniform mat3 u_MVPMatrix;' + #10
+   + 'attribute vec2 a_Position;' + #10
+   + 'attribute vec2 a_TexCoordinate;' + #10
+   + 'varying vec2 v_TexCoordinate;' + #10
+   + 'void main()' + #10
+   + '{' + #10
+   + '  v_TexCoordinate = a_TexCoordinate;' + #10
+   + '  gl_Position = vec4(u_MVPMatrix * vec3(a_Position, 1.0), 1.0);' + #10
+   + '}' + #10
+  );
+
+  CompileShader(stFragment, ''
+  {$ifdef ANDROID} +'precision mediump float;' + #10  {$endif}
+   + 'uniform sampler2D u_Texture;' + #10
+   + 'uniform float u_Alpha;' + #10
+   + 'varying vec2 v_TexCoordinate;' + #10
+   + 'void main()' + #10
+   + '{' + #10
+   + '  gl_FragColor = (texture2D(u_Texture, v_TexCoordinate));' + #10
+   + '  gl_FragColor[3] = gl_FragColor[3] * u_Alpha;' + #10
+   + '}' + #10
+  );
+
+  glBindAttribLocation(FPrgHandle, attrloc_position, 'a_Position');
+  glBindAttribLocation(FPrgHandle, attrloc_texcoordinate, 'a_TexCoordinate');
+
+  LinkProgram;
+
+  Fu_MVPMatrix := glGetUniformLocation(FPrgHandle, 'u_MVPMatrix');
+  Fu_Texture := glGetUniformLocation(FPrgHandle, 'u_Texture');
+  Fu_Alpha := glGetUniformLocation(FPrgHandle, 'u_Alpha');
+end;
+
+procedure TSimpleTextureShader.SetMVPMatrix(const mat : TMatrix);
+var
+  matgl : TMatrixGL;
+begin
+  ddmat_to_gl(matgl, mat);
+  glUniformMatrix3fv(Fu_MVPMatrix, 1, false, @matgl);
+end;
+
+procedure TSimpleTextureShader.SetTexture(atexid : GLint);
+begin
+  glActiveTexture(GL_TEXTURE0);
+  glBindTexture(GL_TEXTURE_2D, atexid);
+  glUniform1i(Fu_Texture, 0);
+end;
+
+procedure TSimpleTextureShader.SetAlpha(aalpha : TddFloat);
+begin
+  glUniform1f(Fu_Alpha, aalpha);
+end;
+
 { TPrimitive }
 
 constructor TPrimitive.Create(amode : GLint; avertexcount : integer; vertdata : PVertex);
@@ -613,6 +679,128 @@ begin
   bufferok := true;
 end;
 
+{ TPixmap }
+
+constructor TPixmap.Create(aparent : TDrawGroup; awidth, aheight : integer);
+begin
+  inherited Create(aparent);
+
+  texhandle := 0;
+  needsupdate := true;
+  width := awidth;
+  height := aheight;
+  vao := -1;
+  vbo[0] := -1;
+  vbo[1] := -1;
+
+  GetMem(data, width * height * 4);
+end;
+
+destructor TPixmap.Destroy;
+begin
+  if vao >= 0 then
+  begin
+    glDeleteVertexArrays(1, @vao);
+    glDeleteBuffers(2, @vbo);
+  end;
+
+  if texhandle <> 0 then glDeleteTextures(1, @texhandle);
+  FreeMem(data);
+  inherited;
+end;
+
+procedure TPixmap.AllocateTexture;
+var
+  framevert  : array[0..3] of TVertex;
+  txtvert    : array[0..3] of TVertex;
+begin
+  if texhandle <> 0 then Exit;
+
+  glGenTextures(1, @texhandle);
+
+  glBindTexture(GL_TEXTURE_2D, texhandle);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+  glGenVertexArrays(1, @vao);
+  glGenBuffers(2, @vbo);
+
+  framevert[0][0] := 0;
+  framevert[0][1] := 0;
+  framevert[1][0] := width - 1;
+  framevert[1][1] := 0;
+  framevert[2][0] := width - 1;
+  framevert[2][1] := height - 1;
+  framevert[3][0] := 0;
+  framevert[3][1] := height - 1;
+
+  glBindVertexArray(vao);
+
+  glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
+  glBufferData(GL_ARRAY_BUFFER, 4 * sizeof(TVertex), @framevert[0], GL_STATIC_DRAW);
+  glEnableVertexAttribArray(attrloc_position);
+  glVertexAttribPointer(attrloc_position, 2, GL_FLOAT, false, 0, nil);
+
+  txtvert[0][0] := 0;
+  txtvert[0][1] := 0;
+  txtvert[1][0] := 1;
+  txtvert[1][1] := 0;
+  txtvert[2][0] := 1;
+  txtvert[2][1] := 1;
+  txtvert[3][0] := 0;
+  txtvert[3][1] := 1;
+
+  glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);
+  glBufferData(GL_ARRAY_BUFFER, 4 * sizeof(TVertex), @txtvert[0], GL_STATIC_DRAW);
+  glEnableVertexAttribArray(attrloc_texcoordinate);
+  glVertexAttribPointer(attrloc_texcoordinate, 2, GL_FLOAT, false, 0, nil);
+
+end;
+
+procedure TPixmap.Clear(acolor : TColorUint);
+begin
+  if data = nil then EXIT;
+  FillDWord(data^, width * height, acolor);
+  needsupdate := true;
+end;
+
+procedure TPixmap.UpdateTexture;
+begin
+  if texhandle = 0 then AllocateTexture;
+
+  glBindTexture(GL_TEXTURE_2D, texhandle);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+
+  needsupdate := false;
+end;
+
+procedure TPixmap.Draw(const apmatrix : TMatrix; apalpha : TddFloat);
+var
+  rmatrix : TMatrix;
+  ralpha  : TddFloat;
+
+begin
+  UpdateMatrix();  // calculates self.matrix from scale[xy], rotation, +[xy]
+
+  // calculate rmatrix, ralpha
+  ddmat_mul(rmatrix, self.matrix, apmatrix);
+  ralpha := apalpha * self.alpha;
+
+  // select the proper shader for texture drawing:
+  texshader_rgba.Activate();
+
+  // pass the matrix to the shader
+  texshader_rgba.SetMVPMatrix(rmatrix);
+  texshader_rgba.SetTexture(texhandle); //SetColor(color.r, color.g, color.b, color.a * ralpha);
+  texshader_rgba.SetAlpha(ralpha);
+
+  if needsupdate then UpdateTexture;
+
+  glBindVertexArray(vao);
+  glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+
+end;
+
 { TDrawable }
 
 constructor TDrawable.Create(aparent : TDrawGroup);
@@ -631,6 +819,7 @@ end;
 
 destructor TDrawable.Destroy;
 begin
+  if parent <> nil then parent.RemoveChild(self, False);
   inherited Destroy;
 end;
 
@@ -809,11 +998,11 @@ begin
 end;
 
 destructor TDrawGroup.Destroy;
-var
-  dr : TDrawable;
 begin
-  for dr in children do dr.Free;
-  SetLength(children, 0);
+  while length(children) > 0 do
+  begin
+    children[0].Free;
+  end;
   inherited Destroy;
 end;
 
@@ -822,6 +1011,24 @@ begin
   SetLength(children, length(children) + 1);
   children[length(children) - 1] := adr;
   adr.parent := self;
+end;
+
+procedure TDrawGroup.RemoveChild(adr : TDrawable; afreeit : boolean);
+var
+  idx : integer;
+begin
+  for idx := 0 to length(children) do
+  begin
+    if children[idx] = adr then
+    begin
+      delete(children, idx, 1);
+      if afreeit then
+      begin
+        adr.Free;
+      end;
+      EXIT;
+    end;
+  end;
 end;
 
 procedure TDrawGroup.Draw(const apmatrix : TMatrix; apalpha : TddFloat);
@@ -843,6 +1050,31 @@ begin
       drobj.Draw(rmatrix, ralpha);
     end;
   end;
+end;
+
+function TDrawGroup.NewGroup : TDrawGroup;
+begin
+  result := TDrawGroup.Create(self);
+end;
+
+function TDrawGroup.NewShape : TShape;
+begin
+  result := TShape.Create(self);
+end;
+
+function TDrawGroup.NewPixmap(awidth, aheight : integer) : TPixmap;
+begin
+  result := TPixmap.Create(self, awidth, aheight);
+end;
+
+function TDrawGroup.CloneShape(aoriginal : TShape) : TClonedShape;
+begin
+  result := TClonedShape.Create(self, aoriginal);
+end;
+
+function TDrawGroup.CloneGroup(aoriginal : TDrawGroup) : TClonedGroup;
+begin
+  result := TClonedGroup.Create(self, aoriginal);
 end;
 
 { TClonedGroup }
@@ -888,6 +1120,7 @@ end;
 constructor TddScene.Create(aowner : TComponent; aparent : TWinControl);
 begin
   inherited Create(aowner);
+  auto_swap_buffer := true;
   parent := aparent;
   name := 'ddScene';
 
@@ -915,14 +1148,20 @@ begin
   glEnable(GL_BLEND);                                // Alphablending an
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // Sortierung der Primitiven von hinten nach vorne.
 
-  fixcolorshader := TSimpleShader.Create;
-  fixcolorshader.Activate;
+  //glXSwapIntervalEXT(GetDefaultXDisplay, nil, 0);
 
-  tst := TddTester.Create;
+  if fixcolorshader = nil then fixcolorshader := TSimpleShader.Create;
+  if texshader_rgba = nil then texshader_rgba := TSimpleTextureShader.Create;
+
+  fixcolorshader.Activate;
 end;
 
 destructor TddScene.Destroy;
 begin
+  root.Free;
+
+  fixcolorshader.Free;
+
   inherited Destroy;
 end;
 
@@ -943,12 +1182,16 @@ begin
   mat_projection[2] := 0;
   mat_projection[3] := -2 / aheight;
 
-  mat_projection[4] := -1;
-  mat_projection[5] := 1;
+  mat_projection[4] := -1 + 0.5 / awidth;   // add half-pixel shift for targeting the middle of the pixels
+  mat_projection[5] :=  1 - 0.5 / aheight;  // add half-pixel shift for targeting the middle of the pixels
 end;
 
 procedure TddScene.DoOnPaint;
+var
+  t0, t1, t2 : int64;
 begin
+  t0 := nstime();
+
   inherited DoOnPaint;  // calls the OnPaint handler
 
   if not MakeCurrent() then
@@ -965,10 +1208,18 @@ begin
 
   // 2. do the drawing....
   root.Draw(mat_projection, 1);
-  //tst.Draw;
+
+  t1 := nstime();
+  render_time_ns := t1 - t0;
 
   // 3. show results on the screen. May be synchronized to the refresh rate
-  SwapBuffers;
+  if auto_swap_buffer then
+  begin
+    SwapBuffers;
+  end;
+
+  t2 := nstime();
+  swap_time_ns := t2 - t1;
 end;
 
 initialization
@@ -976,6 +1227,7 @@ initialization
 begin
   activeshader := nil;
   fixcolorshader := nil;
+  texshader_rgba := nil;
 end;
 
 end.
