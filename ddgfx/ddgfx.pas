@@ -106,9 +106,9 @@ type
     property PrgHandle : TGLint read FPrgHandle;
   end;
 
-  { TSimpleShader }
+  { TShaderFixcolor }
 
-  TSimpleShader = class(TShaderProgram)
+  TShaderFixcolor = class(TShaderProgram)
   private
     Fu_MVPMatrix : TGLint;
     Fu_Color : TGLint;
@@ -120,9 +120,9 @@ type
     procedure SetColor(const glc : TColorGL); overload;
   end;
 
-  { TSimpleTextureShader }
+  { TTextureShaderRgba }
 
-  TSimpleTextureShader = class(TShaderProgram)
+  TTextureShaderRgba = class(TShaderProgram)
   private
     Fu_MVPMatrix : TGLint;
     Fu_Texture   : TGLint;
@@ -133,6 +133,22 @@ type
     procedure SetMVPMatrix(const mat : TMatrix);
     procedure SetTexture(atexid : GLint);
     procedure SetAlpha(aalpha : TddFloat);
+  end;
+
+  { TTextureShaderAlpha }
+
+  TTextureShaderAlpha = class(TShaderProgram)
+  private
+    Fu_MVPMatrix : TGLint;
+    Fu_Texture   : TGLint;
+    Fu_Color : TGLint;
+  public
+    constructor Create; override;
+
+    procedure SetMVPMatrix(const mat : TMatrix);
+    procedure SetTexture(atexid : GLint);
+    procedure SetColor(r,g,b,a : single); overload;
+    procedure SetColor(const glc : TColorGL); overload;
   end;
 
   { TDrawable }
@@ -205,6 +221,55 @@ type
     procedure Clear(acolor : TColorUint);
 
     procedure UpdateTexture;
+
+    procedure Draw(const apmatrix : TMatrix; apalpha : TddFloat); override;
+
+  end;
+
+  { TAlphaMap }
+
+  TAlphaMap = class(TDrawable)
+  protected
+    texhandle : GLint;
+
+    vao : TGLint;  // vertex array object
+    vbo : array[0..1] of TGLint;  // vertex buffer objects: shape, texture
+
+    procedure AllocateTexture;
+
+  public
+    width  : integer;
+    height : integer;
+    needsupdate : boolean;
+
+    color : TColorGL;  // white by default
+
+    data   : PByte;
+
+    constructor Create(aparent : TDrawGroup; awidth, aheight : integer); reintroduce;
+    destructor Destroy; override;
+
+    procedure Clear(acolor : TColorUint);
+
+    procedure UpdateTexture;
+
+    procedure Draw(const apmatrix : TMatrix; apalpha : TddFloat); override;
+
+  end;
+
+
+  { TTextBox }
+
+  TTextBox = class(TDrawable)
+  public
+    width  : integer;
+    height : integer;
+    needsupdate : boolean;
+
+    text : string;
+
+    constructor Create(aparent : TDrawGroup; awidth, aheight : integer; atext : string); reintroduce;
+    destructor Destroy; override;
 
     procedure Draw(const apmatrix : TMatrix; apalpha : TddFloat); override;
 
@@ -303,6 +368,12 @@ const
     0, 1
   );
 
+  ddcolor_white : TddColorGL = (r:1; g:1; b:1; a:1);
+  ddcolor_black : TddColorGL = (r:0; g:0; b:0; a:1);
+  ddcolor_red   : TddColorGL = (r:1; g:0; b:0; a:1);
+  ddcolor_green : TddColorGL = (r:0; g:1; b:0; a:1);
+  ddcolor_blue  : TddColorGL = (r:0; g:0; b:1; a:1);
+
 procedure ddmat_identity(out mat : TMatrix);
 procedure ddmat_mul(out mat : TMatrix; const mat1, mat2 : TMatrix); overload; // ensure that mat <> mat1 !!!
 procedure ddmat_mul(var mat : TMatrix; const mat2 : TMatrix); overload;
@@ -316,8 +387,10 @@ procedure ddmat_set_projection(out projmat : TMatrix; awidth, aheight : single);
 
 var
   activeshader    : TShaderProgram;
-  fixcolorshader  : TSimpleShader;
-  texshader_rgba  : TSimpleTextureShader;
+
+  shader_fixcolor : TShaderFixcolor;
+  texshader_rgba  : TTextureShaderRgba;
+  texshader_alpha : TTextureShaderAlpha;
 
 implementation
 
@@ -519,9 +592,9 @@ begin
   activeshader := self;
 end;
 
-{ TSimpleShader }
+{ TShaderFixcolor }
 
-constructor TSimpleShader.Create;
+constructor TShaderFixcolor.Create;
 begin
   inherited;
 
@@ -551,7 +624,7 @@ begin
   Fu_Color := glGetUniformLocation(FPrgHandle, 'u_Color');
 end;
 
-procedure TSimpleShader.SetMVPMatrix(const mat : TMatrix);
+procedure TShaderFixcolor.SetMVPMatrix(const mat : TMatrix);
 var
   matgl : TMatrixGL;
 begin
@@ -559,19 +632,19 @@ begin
   glUniformMatrix3fv(Fu_MVPMatrix, 1, false, @matgl);   // gles header difference!
 end;
 
-procedure TSimpleShader.SetColor(r, g, b, a : single);
+procedure TShaderFixcolor.SetColor(r, g, b, a : single);
 begin
   glUniform4f(Fu_Color, r, g, b, a);
 end;
 
-procedure TSimpleShader.SetColor(const glc: TColorGL);
+procedure TShaderFixcolor.SetColor(const glc: TColorGL);
 begin
   SetColor(glc.r, glc.g, glc.b, glc.a);
 end;
 
-{ TSimpleTextureShader }
+{ TTextureShaderRgba }
 
-constructor TSimpleTextureShader.Create;
+constructor TTextureShaderRgba.Create;
 begin
   inherited;
 
@@ -609,7 +682,7 @@ begin
   Fu_Alpha := glGetUniformLocation(FPrgHandle, 'u_Alpha');
 end;
 
-procedure TSimpleTextureShader.SetMVPMatrix(const mat : TMatrix);
+procedure TTextureShaderRgba.SetMVPMatrix(const mat : TMatrix);
 var
   matgl : TMatrixGL;
 begin
@@ -617,17 +690,84 @@ begin
   glUniformMatrix3fv(Fu_MVPMatrix, 1, false, @matgl);
 end;
 
-procedure TSimpleTextureShader.SetTexture(atexid : GLint);
+procedure TTextureShaderRgba.SetTexture(atexid : GLint);
 begin
   glActiveTexture(GL_TEXTURE0);
   glBindTexture(GL_TEXTURE_2D, atexid);
   glUniform1i(Fu_Texture, 0);
 end;
 
-procedure TSimpleTextureShader.SetAlpha(aalpha : TddFloat);
+procedure TTextureShaderRgba.SetAlpha(aalpha : TddFloat);
 begin
   glUniform1f(Fu_Alpha, aalpha);
 end;
+
+{ TTextureShaderAlpha }
+
+
+constructor TTextureShaderAlpha.Create;
+begin
+  inherited;
+
+  CompileShader(stVertex,
+     'uniform mat3 u_MVPMatrix;' + #10
+   + 'attribute vec2 a_Position;' + #10
+   + 'attribute vec2 a_TexCoordinate;' + #10
+   + 'varying vec2 v_TexCoordinate;' + #10
+   + 'void main()' + #10
+   + '{' + #10
+   + '  v_TexCoordinate = a_TexCoordinate;' + #10
+   + '  gl_Position = vec4(u_MVPMatrix * vec3(a_Position, 1.0), 1.0);' + #10
+   + '}' + #10
+  );
+
+  CompileShader(stFragment, ''
+  {$ifdef ANDROID} +'precision mediump float;' + #10  {$endif}
+   + 'uniform sampler2D u_Texture;' + #10
+   + 'uniform vec4 u_Color;' + #10
+   + 'varying vec2 v_TexCoordinate;' + #10
+   + 'void main()' + #10
+   + '{' + #10
+   + '  gl_FragColor = u_Color;' + #10
+   + '  gl_FragColor[3] = gl_FragColor[3] * texture2D(u_Texture, v_TexCoordinate).r;' + #10
+   + '}' + #10
+  );
+
+  glBindAttribLocation(FPrgHandle, attrloc_position, 'a_Position');
+  glBindAttribLocation(FPrgHandle, attrloc_texcoordinate, 'a_TexCoordinate');
+
+  LinkProgram;
+
+  Fu_MVPMatrix := glGetUniformLocation(FPrgHandle, 'u_MVPMatrix');
+  Fu_Texture   := glGetUniformLocation(FPrgHandle, 'u_Texture');
+  Fu_Color     := glGetUniformLocation(FPrgHandle, 'u_Color');
+end;
+
+procedure TTextureShaderAlpha.SetMVPMatrix(const mat : TMatrix);
+var
+  matgl : TMatrixGL;
+begin
+  ddmat_to_gl(matgl, mat);
+  glUniformMatrix3fv(Fu_MVPMatrix, 1, false, @matgl);
+end;
+
+procedure TTextureShaderAlpha.SetTexture(atexid : GLint);
+begin
+  glActiveTexture(GL_TEXTURE0);
+  glBindTexture(GL_TEXTURE_2D, atexid);
+  glUniform1i(Fu_Texture, 0);
+end;
+
+procedure TTextureShaderAlpha.SetColor(r, g, b, a : single);
+begin
+  glUniform4f(Fu_Color, r, g, b, a);
+end;
+
+procedure TTextureShaderAlpha.SetColor(const glc: TColorGL);
+begin
+  SetColor(glc.r, glc.g, glc.b, glc.a);
+end;
+
 
 { TPrimitive }
 
@@ -677,6 +817,189 @@ begin
   glVertexAttribPointer(attrloc_position, 2, GL_FLOAT, false, 0, nil);
 
   bufferok := true;
+end;
+
+{ TDrawable }
+
+constructor TDrawable.Create(aparent : TDrawGroup);
+begin
+  parent := aparent;
+  if parent <> nil then parent.AddChild(self)
+                   else parent := nil;
+  x := 0;
+  y := 0;
+  scalex := 1;
+  scaley := 1;
+  rotation := 0;
+  alpha := 1;
+  visible := true;
+end;
+
+destructor TDrawable.Destroy;
+begin
+  if parent <> nil then parent.RemoveChild(self, False);
+  inherited Destroy;
+end;
+
+procedure TDrawable.CopyProperties(acopyfrom : TDrawable);
+begin
+  x := acopyfrom.x;
+  y := acopyfrom.y;
+  scalex := acopyfrom.scalex;
+  scaley := acopyfrom.scaley;
+  rotation := acopyfrom.rotation;
+  alpha := acopyfrom.alpha;
+  visible := acopyfrom.visible;
+end;
+
+procedure TDrawable.UpdateMatrix;
+var
+  cosfi, sinfi : TddFloat;
+begin
+  cosfi := cos(PI * rotation / 180);
+  sinfi := sin(PI * rotation / 180);
+
+  matrix[0] := scalex * cosfi;
+  matrix[1] := - sinfi * scaley;
+
+  matrix[2] := sinfi * scalex;
+  matrix[3] := scaley * cosfi;
+
+  matrix[4] := x;
+  matrix[5] := y;
+end;
+
+{ TShape }
+
+constructor TShape.Create(aparent : TDrawGroup);
+begin
+  inherited Create(aparent);
+
+  color := ddcolor_white;  // white is the default color
+
+  SetLength(primitives, 0);
+end;
+
+destructor TShape.Destroy;
+begin
+  Clear;
+  inherited Destroy;
+end;
+
+function TShape.AddPrimitive(amode : GLint; avertcount : integer; avertdata : PVertex) : TPrimitive;
+begin
+  result := TPrimitive.Create(amode, avertcount, avertdata);
+
+  SetLength(primitives, length(primitives) + 1);
+  primitives[length(primitives) - 1] := result;
+end;
+
+procedure TShape.Clear;
+var
+  p : TPrimitive;
+begin
+  for p in primitives do p.Free;
+  SetLength(primitives, 0);
+end;
+
+procedure TShape.SetColor(r, g, b : TddFloat);
+begin
+  color.r := r;
+  color.b := b;
+  color.g := g;
+end;
+
+procedure TShape.SetColor(r, g, b, a : TddFloat);
+begin
+  color.r := r;
+  color.b := b;
+  color.g := g;
+  color.a := a;
+end;
+
+procedure TShape.Draw(const apmatrix : TMatrix; apalpha : TddFloat);
+var
+  rmatrix : TMatrix;
+  ralpha  : TddFloat;
+  dprim   : TPrimitive;
+begin
+  UpdateMatrix();  // calculates self.matrix from scale[xy], rotation, +[xy]
+
+  // calculate rmatrix, ralpha
+  ddmat_mul(rmatrix, self.matrix, apmatrix);
+  ralpha := apalpha * self.alpha;
+
+  // select the proper shader for shape drawing:
+  shader_fixcolor.Activate();
+
+  // pass the matrix to the shader
+  shader_fixcolor.SetMVPMatrix(rmatrix);
+  shader_fixcolor.SetColor(color.r, color.g, color.b, color.a * ralpha);
+
+  for dprim in primitives do
+  begin
+    dprim.Draw();
+  end;
+end;
+
+{ TClonedShape }
+
+constructor TClonedShape.Create(aparent : TDrawGroup; aoriginal : TShape);
+begin
+  inherited Create(aparent);
+
+  original := aoriginal;
+  if original <> nil then
+  begin
+    // copy the original color
+    color := original.color;
+    CopyProperties(original);
+  end;
+end;
+
+destructor TClonedShape.Destroy;
+begin
+  inherited Destroy;
+end;
+
+procedure TClonedShape.SetColor(r, g, b : TddFloat);
+begin
+  color.r := r;
+  color.b := b;
+  color.g := g;
+end;
+
+procedure TClonedShape.SetColor(r, g, b, a : TddFloat);
+begin
+  color.r := r;
+  color.b := b;
+  color.g := g;
+  color.a := a;
+end;
+
+procedure TClonedShape.Draw(const apmatrix : TMatrix; apalpha : TddFloat);
+var
+  rmatrix : TMatrix;
+  ralpha  : TddFloat;
+  dprim   : TPrimitive;
+begin
+  UpdateMatrix();  // calculates self.matrix from scale[xy], rotation, +[xy]
+
+  // calculate rmatrix, ralpha
+  ddmat_mul(rmatrix, self.matrix, apmatrix);
+  ralpha := apalpha * self.alpha;
+
+  // select the proper shader for shape drawing:
+  shader_fixcolor.Activate();
+
+  // pass the matrix to the shader
+  shader_fixcolor.SetMVPMatrix(rmatrix);
+  shader_fixcolor.SetColor(color.r, color.g, color.b, color.a * ralpha);
+
+  for dprim in original.primitives do
+  begin
+    dprim.Draw();
+  end;
 end;
 
 { TPixmap }
@@ -801,113 +1124,108 @@ begin
 
 end;
 
-{ TDrawable }
+{ TAlphaMap }
 
-constructor TDrawable.Create(aparent : TDrawGroup);
-begin
-  parent := aparent;
-  if parent <> nil then parent.AddChild(self)
-                   else parent := nil;
-  x := 0;
-  y := 0;
-  scalex := 1;
-  scaley := 1;
-  rotation := 0;
-  alpha := 1;
-  visible := true;
-end;
-
-destructor TDrawable.Destroy;
-begin
-  if parent <> nil then parent.RemoveChild(self, False);
-  inherited Destroy;
-end;
-
-procedure TDrawable.CopyProperties(acopyfrom : TDrawable);
-begin
-  x := acopyfrom.x;
-  y := acopyfrom.y;
-  scalex := acopyfrom.scalex;
-  scaley := acopyfrom.scaley;
-  rotation := acopyfrom.rotation;
-  alpha := acopyfrom.alpha;
-  visible := acopyfrom.visible;
-end;
-
-procedure TDrawable.UpdateMatrix;
-var
-  cosfi, sinfi : TddFloat;
-begin
-  cosfi := cos(PI * rotation / 180);
-  sinfi := sin(PI * rotation / 180);
-
-  matrix[0] := scalex * cosfi;
-  matrix[1] := - sinfi * scaley;
-
-  matrix[2] := sinfi * scalex;
-  matrix[3] := scaley * cosfi;
-
-  matrix[4] := x;
-  matrix[5] := y;
-end;
-
-{ TShape }
-
-constructor TShape.Create(aparent : TDrawGroup);
+constructor TAlphaMap.Create(aparent : TDrawGroup; awidth, aheight : integer);
 begin
   inherited Create(aparent);
 
-  // white is the default color
-  color.r := 1;
-  color.g := 1;
-  color.b := 1;
-  color.a := 1; // default alpha
+  texhandle := 0;
+  needsupdate := true;
+  width := awidth;
+  height := aheight;
 
-  SetLength(primitives, 0);
+  color := ddcolor_white;
+
+  vao := -1;
+  vbo[0] := -1;
+  vbo[1] := -1;
+
+  GetMem(data, width * height * 1);
 end;
 
-destructor TShape.Destroy;
+destructor TAlphaMap.Destroy;
 begin
-  Clear;
-  inherited Destroy;
+  if vao >= 0 then
+  begin
+    glDeleteVertexArrays(1, @vao);
+    glDeleteBuffers(2, @vbo);
+  end;
+
+  if texhandle <> 0 then glDeleteTextures(1, @texhandle);
+  FreeMem(data);
+  inherited;
 end;
 
-function TShape.AddPrimitive(amode : GLint; avertcount : integer; avertdata : PVertex) : TPrimitive;
-begin
-  result := TPrimitive.Create(amode, avertcount, avertdata);
-
-  SetLength(primitives, length(primitives) + 1);
-  primitives[length(primitives) - 1] := result;
-end;
-
-procedure TShape.Clear;
+procedure TAlphaMap.AllocateTexture;
 var
-  p : TPrimitive;
+  framevert  : array[0..3] of TVertex;
+  txtvert    : array[0..3] of TVertex;
 begin
-  for p in primitives do p.Free;
-  SetLength(primitives, 0);
+  if texhandle <> 0 then Exit;
+
+  glGenTextures(1, @texhandle);
+
+  glBindTexture(GL_TEXTURE_2D, texhandle);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+  glGenVertexArrays(1, @vao);
+  glGenBuffers(2, @vbo);
+
+  framevert[0][0] := 0;
+  framevert[0][1] := 0;
+  framevert[1][0] := width - 1;
+  framevert[1][1] := 0;
+  framevert[2][0] := width - 1;
+  framevert[2][1] := height - 1;
+  framevert[3][0] := 0;
+  framevert[3][1] := height - 1;
+
+  glBindVertexArray(vao);
+
+  glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
+  glBufferData(GL_ARRAY_BUFFER, 4 * sizeof(TVertex), @framevert[0], GL_STATIC_DRAW);
+  glEnableVertexAttribArray(attrloc_position);
+  glVertexAttribPointer(attrloc_position, 2, GL_FLOAT, false, 0, nil);
+
+  txtvert[0][0] := 0;
+  txtvert[0][1] := 0;
+  txtvert[1][0] := 1;
+  txtvert[1][1] := 0;
+  txtvert[2][0] := 1;
+  txtvert[2][1] := 1;
+  txtvert[3][0] := 0;
+  txtvert[3][1] := 1;
+
+  glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);
+  glBufferData(GL_ARRAY_BUFFER, 4 * sizeof(TVertex), @txtvert[0], GL_STATIC_DRAW);
+  glEnableVertexAttribArray(attrloc_texcoordinate);
+  glVertexAttribPointer(attrloc_texcoordinate, 2, GL_FLOAT, false, 0, nil);
+
 end;
 
-procedure TShape.SetColor(r, g, b : TddFloat);
+procedure TAlphaMap.Clear(acolor : TColorUint);
 begin
-  color.r := r;
-  color.b := b;
-  color.g := g;
+  if data = nil then EXIT;
+  FillDWord(data^, width * height, acolor);
+  needsupdate := true;
 end;
 
-procedure TShape.SetColor(r, g, b, a : TddFloat);
+procedure TAlphaMap.UpdateTexture;
 begin
-  color.r := r;
-  color.b := b;
-  color.g := g;
-  color.a := a;
+  if texhandle = 0 then AllocateTexture;
+
+  glBindTexture(GL_TEXTURE_2D, texhandle);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, width, height, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE, data);
+
+  needsupdate := false;
 end;
 
-procedure TShape.Draw(const apmatrix : TMatrix; apalpha : TddFloat);
+procedure TAlphaMap.Draw(const apmatrix : TMatrix; apalpha : TddFloat);
 var
   rmatrix : TMatrix;
   ralpha  : TddFloat;
-  dprim   : TPrimitive;
 begin
   UpdateMatrix();  // calculates self.matrix from scale[xy], rotation, +[xy]
 
@@ -915,78 +1233,43 @@ begin
   ddmat_mul(rmatrix, self.matrix, apmatrix);
   ralpha := apalpha * self.alpha;
 
-  // select the proper shader for shape drawing:
-  fixcolorshader.Activate();
+  // select the proper shader for texture drawing:
+  texshader_alpha.Activate();
 
   // pass the matrix to the shader
-  fixcolorshader.SetMVPMatrix(rmatrix);
-  fixcolorshader.SetColor(color.r, color.g, color.b, color.a * ralpha);
+  texshader_alpha.SetMVPMatrix(rmatrix);
+  texshader_alpha.SetTexture(texhandle);
+  texshader_alpha.SetColor(color.r, color.g, color.b, color.a * ralpha);
 
-  for dprim in primitives do
-  begin
-    dprim.Draw();
-  end;
+  if needsupdate then UpdateTexture;
+
+  glBindVertexArray(vao);
+  glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+
 end;
 
-{ TClonedShape }
+{ TTextBox }
 
-constructor TClonedShape.Create(aparent : TDrawGroup; aoriginal : TShape);
+constructor TTextBox.Create(aparent : TDrawGroup; awidth, aheight : integer; atext : string);
 begin
   inherited Create(aparent);
+  width := awidth;
+  height := aheight;
+  text := atext;
 
-  original := aoriginal;
-  if original <> nil then
-  begin
-    // copy the original color
-    color := original.color;
-    CopyProperties(original);
-  end;
+  needsupdate := true;
 end;
 
-destructor TClonedShape.Destroy;
+destructor TTextBox.Destroy;
 begin
   inherited Destroy;
 end;
 
-procedure TClonedShape.SetColor(r, g, b : TddFloat);
+procedure TTextBox.Draw(const apmatrix : TMatrix; apalpha : TddFloat);
 begin
-  color.r := r;
-  color.b := b;
-  color.g := g;
+
 end;
 
-procedure TClonedShape.SetColor(r, g, b, a : TddFloat);
-begin
-  color.r := r;
-  color.b := b;
-  color.g := g;
-  color.a := a;
-end;
-
-procedure TClonedShape.Draw(const apmatrix : TMatrix; apalpha : TddFloat);
-var
-  rmatrix : TMatrix;
-  ralpha  : TddFloat;
-  dprim   : TPrimitive;
-begin
-  UpdateMatrix();  // calculates self.matrix from scale[xy], rotation, +[xy]
-
-  // calculate rmatrix, ralpha
-  ddmat_mul(rmatrix, self.matrix, apmatrix);
-  ralpha := apalpha * self.alpha;
-
-  // select the proper shader for shape drawing:
-  fixcolorshader.Activate();
-
-  // pass the matrix to the shader
-  fixcolorshader.SetMVPMatrix(rmatrix);
-  fixcolorshader.SetColor(color.r, color.g, color.b, color.a * ralpha);
-
-  for dprim in original.primitives do
-  begin
-    dprim.Draw();
-  end;
-end;
 
 { TDrawGroup }
 
@@ -1150,17 +1433,18 @@ begin
 
   //glXSwapIntervalEXT(GetDefaultXDisplay, nil, 0);
 
-  if fixcolorshader = nil then fixcolorshader := TSimpleShader.Create;
-  if texshader_rgba = nil then texshader_rgba := TSimpleTextureShader.Create;
+  if shader_fixcolor = nil then shader_fixcolor := TShaderFixcolor.Create;
+  if texshader_rgba  = nil then texshader_rgba  := TTextureShaderRgba.Create;
+  if texshader_alpha = nil then texshader_alpha := TTextureShaderAlpha.Create;
 
-  fixcolorshader.Activate;
+  shader_fixcolor.Activate;
 end;
 
 destructor TddScene.Destroy;
 begin
   root.Free;
 
-  fixcolorshader.Free;
+  shader_fixcolor.Free;
 
   inherited Destroy;
 end;
@@ -1226,8 +1510,9 @@ initialization
 
 begin
   activeshader := nil;
-  fixcolorshader := nil;
+  shader_fixcolor := nil;
   texshader_rgba := nil;
+  texshader_alpha := nil;
 end;
 
 end.

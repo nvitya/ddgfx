@@ -28,6 +28,7 @@ type
     scene : TddScene;
 
     bmp : TPixmap;
+    abmp : TAlphaMap;
 
     t : single; // time
 
@@ -51,6 +52,8 @@ uses dglOpenGL;
 procedure TfrmMain.FormCreate(Sender : TObject);
 var
   pd, pend : PColorUint;
+  pb, pbend : PByte;
+  b : byte;
   col : TColorUint;
 begin
 
@@ -75,18 +78,35 @@ begin
   while pd < pend do
   begin
     pd^ := col;
-    inc(col);
+    col += 16;
     inc(pd);
   end;
   bmp.needsupdate := true;
   bmp.scalex := 2;
   bmp.scaley := 2;
   bmp.alpha := 0.5;
-  bmp.rotation := -25;
+  //bmp.rotation := -25;
+
+
+  abmp := TAlphaMap.Create(scene.root, 100, 100);
+  abmp.x := 10;
+  abmp.y := 10;
+  abmp.alpha := 0.2;
+
+  pb := abmp.data;
+  pbend := pb + abmp.width * abmp.height;
+  b := 0;
+  while pb < pbend do
+  begin
+    pb^ := b;
+    b += 1;
+    inc(pb);
+  end;
+  abmp.needsupdate := true;
 
   scene.OnResize := @OglboxResize;
 
-  drawtimer.Enabled := true;
+  drawtimer.Enabled := false; //true;
   t := 0;
 end;
 
@@ -101,8 +121,9 @@ begin
   // modify the shapes
   t += 1;
 
-  bmp.alpha := 1 + 0.5* sin(t / 50);
+  bmp.alpha := 1 + 0.9 * sin(t / 50);
   bmp.scalex := 1 + 0.5 * sin(t / 100);
+  bmp.scaley := bmp.scalex;
   bmp.rotation := 20 + 40 * sin(t / 70);
 
   // for proper rescaling effect the x,y should remain zero
