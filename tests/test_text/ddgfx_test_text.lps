@@ -8,8 +8,8 @@
         <Filename Value="ddgfx_test_text.lpr"/>
         <IsPartOfProject Value="True"/>
         <EditorIndex Value="2"/>
-        <CursorPos X="33" Y="13"/>
-        <UsageCount Value="28"/>
+        <CursorPos X="60" Y="24"/>
+        <UsageCount Value="31"/>
         <Loaded Value="True"/>
       </Unit>
       <Unit>
@@ -22,9 +22,9 @@
         <IsVisibleTab Value="True"/>
         <EditorIndex Value="4"/>
         <WindowIndex Value="1"/>
-        <TopLine Value="84"/>
-        <CursorPos X="13" Y="161"/>
-        <UsageCount Value="20"/>
+        <TopLine Value="145"/>
+        <CursorPos X="25" Y="224"/>
+        <UsageCount Value="23"/>
         <Loaded Value="True"/>
         <LoadedDesigner Value="True"/>
       </Unit>
@@ -63,13 +63,13 @@
         <WindowIndex Value="1"/>
         <TopLine Value="313"/>
         <CursorPos X="19" Y="260"/>
-        <UsageCount Value="14"/>
+        <UsageCount Value="15"/>
         <Loaded Value="True"/>
       </Unit>
       <Unit>
         <Filename Value="/hdd/work_old2/u4tk/src/u4utils.pas"/>
         <TopLine Value="1021"/>
-        <UsageCount Value="13"/>
+        <UsageCount Value="14"/>
         <Loaded Value="True"/>
       </Unit>
       <Unit>
@@ -78,7 +78,7 @@
         <WindowIndex Value="1"/>
         <TopLine Value="1176"/>
         <CursorPos X="11" Y="1223"/>
-        <UsageCount Value="12"/>
+        <UsageCount Value="13"/>
         <Loaded Value="True"/>
       </Unit>
       <Unit>
@@ -86,7 +86,7 @@
         <EditorIndex Value="1"/>
         <WindowIndex Value="1"/>
         <CursorPos X="7" Y="10"/>
-        <UsageCount Value="10"/>
+        <UsageCount Value="11"/>
         <Loaded Value="True"/>
       </Unit>
       <Unit>
@@ -95,78 +95,38 @@
         <WindowIndex Value="1"/>
         <TopLine Value="293"/>
         <CursorPos X="33" Y="302"/>
-        <UsageCount Value="10"/>
+        <UsageCount Value="11"/>
         <Loaded Value="True"/>
       </Unit>
       <Unit>
         <Filename Value="/usr/share/fpcsrc/3.2.2/packages/fcl-image/src/libfreetype.inc"/>
         <EditorIndex Value="1"/>
-        <TopLine Value="82"/>
-        <CursorPos X="67" Y="128"/>
-        <UsageCount Value="10"/>
+        <TopLine Value="142"/>
+        <CursorPos X="3" Y="193"/>
+        <UsageCount Value="11"/>
+        <Loaded Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="/usr/share/fpcsrc/3.2.2/packages/fcl-image/src/freetype.pp"/>
+        <EditorIndex Value="5"/>
+        <WindowIndex Value="1"/>
+        <TopLine Value="127"/>
+        <UsageCount Value="11"/>
+        <Loaded Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="/usr/share/fpcsrc/3.2.2/packages/fcl-image/src/fpimgcmn.pp"/>
+        <UnitName Value="FPImgCmn"/>
+        <EditorIndex Value="6"/>
+        <WindowIndex Value="1"/>
+        <UsageCount Value="11"/>
         <Loaded Value="True"/>
       </Unit>
     </Units>
     <General>
       <ActiveWindowIndexAtStart Value="1"/>
     </General>
-    <JumpHistory HistoryIndex="28">
-      <Position>
-        <Filename Value="../../ddgfx/ddgfx.pas"/>
-        <Caret Line="1113" Column="17" TopLine="1022"/>
-      </Position>
-      <Position>
-        <Filename Value="../../ddgfx/ddgfx.pas"/>
-        <Caret Line="1116" Column="17" TopLine="1025"/>
-      </Position>
-      <Position>
-        <Filename Value="../../ddgfx/ddgfx.pas"/>
-        <Caret Line="1117" Column="17" TopLine="1026"/>
-      </Position>
-      <Position>
-        <Filename Value="../../ddgfx/ddgfx.pas"/>
-        <Caret Line="1118" Column="17" TopLine="1027"/>
-      </Position>
-      <Position>
-        <Filename Value="../../ddgfx/ddgfx.pas"/>
-        <Caret Line="1241" Column="42" TopLine="1161"/>
-      </Position>
-      <Position>
-        <Filename Value="../../ddgfx/ddgfx.pas"/>
-        <Caret Line="1237" Column="3" TopLine="1188"/>
-      </Position>
-      <Position>
-        <Filename Value="../../ddgfx/ddgfx.pas"/>
-        <Caret Line="1438" Column="49" TopLine="1346"/>
-      </Position>
-      <Position>
-        <Filename Value="../../ddgfx/ddgfx.pas"/>
-        <Caret Line="1515" Column="18" TopLine="1420"/>
-      </Position>
-      <Position>
-        <Filename Value="../../ddgfx/ddgfx.pas"/>
-        <Caret Line="393" Column="18" TopLine="343"/>
-      </Position>
-      <Position>
-        <Filename Value="formmain.pas"/>
-        <Caret Line="23" Column="18"/>
-      </Position>
-      <Position>
-        <Filename Value="../../ddgfx/ddgfx.pas"/>
-        <Caret Line="252" Column="18" TopLine="228"/>
-      </Position>
-      <Position>
-        <Filename Value="../../ddgfx/ddgfx.pas"/>
-        <Caret Line="1244" TopLine="1197"/>
-      </Position>
-      <Position>
-        <Filename Value="../../ddgfx/ddgfx.pas"/>
-        <Caret Line="268" Column="5" TopLine="207"/>
-      </Position>
-      <Position>
-        <Filename Value="../../ddgfx/ddgfx.pas"/>
-        <Caret Line="1255" TopLine="1251"/>
-      </Position>
+    <JumpHistory HistoryIndex="29">
       <Position>
         <Filename Value="../../ddgfx/ddgfx.pas"/>
         <Caret Line="249" Column="17" TopLine="219"/>
@@ -226,6 +186,66 @@
       <Position>
         <Filename Value="formmain.pas"/>
         <Caret Line="102" Column="26" TopLine="54"/>
+      </Position>
+      <Position>
+        <Filename Value="formmain.pas"/>
+        <Caret Line="131" Column="37" TopLine="84"/>
+      </Position>
+      <Position>
+        <Filename Value="formmain.pas"/>
+        <Caret Line="200" Column="3" TopLine="114"/>
+      </Position>
+      <Position>
+        <Filename Value="/usr/share/fpcsrc/3.2.2/packages/fcl-image/src/freetype.pp"/>
+        <Caret Line="884" Column="3" TopLine="881"/>
+      </Position>
+      <Position>
+        <Filename Value="/usr/share/fpcsrc/3.2.2/packages/fcl-image/src/freetype.pp"/>
+        <Caret Line="145" Column="16" TopLine="109"/>
+      </Position>
+      <Position>
+        <Filename Value="/usr/share/fpcsrc/3.2.2/packages/fcl-image/src/freetype.pp"/>
+        <Caret Line="351" Column="3" TopLine="333"/>
+      </Position>
+      <Position>
+        <Filename Value="/usr/share/fpcsrc/3.2.2/packages/fcl-image/src/freetype.pp"/>
+        <Caret Line="145" Column="18" TopLine="96"/>
+      </Position>
+      <Position>
+        <Filename Value="/usr/share/fpcsrc/3.2.2/packages/fcl-image/src/freetype.pp"/>
+        <Caret Line="351" Column="3" TopLine="333"/>
+      </Position>
+      <Position>
+        <Filename Value="/usr/share/fpcsrc/3.2.2/packages/fcl-image/src/freetype.pp"/>
+        <Caret Line="145" Column="18" TopLine="96"/>
+      </Position>
+      <Position>
+        <Filename Value="/usr/share/fpcsrc/3.2.2/packages/fcl-image/src/freetype.pp"/>
+        <Caret Line="351" Column="3" TopLine="333"/>
+      </Position>
+      <Position>
+        <Filename Value="/usr/share/fpcsrc/3.2.2/packages/fcl-image/src/freetype.pp"/>
+        <Caret Line="118" Column="67" TopLine="67"/>
+      </Position>
+      <Position>
+        <Filename Value="/usr/share/fpcsrc/3.2.2/packages/fcl-image/src/freetype.pp"/>
+        <Caret Line="1039" Column="5" TopLine="948"/>
+      </Position>
+      <Position>
+        <Filename Value="formmain.pas"/>
+        <Caret Line="231" Column="30" TopLine="108"/>
+      </Position>
+      <Position>
+        <Filename Value="/usr/share/fpcsrc/3.2.2/packages/fcl-image/src/libfreetype.inc"/>
+        <Caret Line="251" Column="3" TopLine="199"/>
+      </Position>
+      <Position>
+        <Filename Value="/usr/share/fpcsrc/3.2.2/packages/fcl-image/src/libfreetype.inc"/>
+        <Caret Line="330" Column="3" TopLine="281"/>
+      </Position>
+      <Position>
+        <Filename Value="formmain.pas"/>
+        <Caret Line="219" Column="50" TopLine="148"/>
       </Position>
     </JumpHistory>
     <RunParams>

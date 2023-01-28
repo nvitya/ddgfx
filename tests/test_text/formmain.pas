@@ -54,7 +54,7 @@ var
 
 implementation
 
-uses dglOpenGL;
+uses dglOpenGL, freetype;
 
 {$R *.lfm}
 
@@ -115,6 +115,8 @@ procedure TfrmMain.FormDestroy(Sender : TObject);
 begin
 end;
 
+{$if 0}
+
 procedure TfrmMain.RenderChar;
 var
   w, h : integer;
@@ -128,7 +130,7 @@ begin
     raise Exception.Create('Error opening TTF font.');
   end;
 
-  if FT_Set_Char_Size(fontface, 0, 12 shl 6, 196, 196) <> 0 then
+  if FT_Set_Char_Size(fontface, 0, 9 shl 6, 96, 96) <> 0 then
     raise Exception.Create('FT_Set_Char_Size failed');
 
   glyphcode := ord('g');
@@ -171,6 +173,65 @@ begin
 
   FT_Done_Glyph(glyph);
 end;
+
+{$else}
+
+var
+  ftmgr : TFontManager;
+
+procedure TfrmMain.RenderChar;
+var
+  s : string;
+  fid : integer;
+  sbm : TStringBitmaps;
+  pfb : PFontBitmap;
+
+  pt : pbyte;
+  tx, ty : integer;
+
+  w, h : integer;
+  pd : pbyte;
+
+  i : integer;
+begin
+  ftmgr := TFontManager.Create;
+{
+  writeln('searching font...');
+  s := ftmgr.SearchFont('liberationserif', false);
+  writeln(' = ', s);
+}
+  fid := ftmgr.RequestFont('liberationserif');
+  writeln('fid=',fid);
+
+  sbm := ftmgr.GetStringGray(fid, txt.text, 12);
+
+  tx := 10;
+  ty := 10;
+
+  for i := 0 to sbm.Count-1 do
+  begin
+    pfb := sbm.Bitmaps[i];
+
+    pd := @pfb^.data[0];
+    for h := 1 to pfb^.height do
+    begin
+      pt := txt.data;
+      Inc(pt, txt.width * (h + ty + pfb^.y));
+      Inc(pt, tx + pfb^.x);
+      for w := 1 to pfb^.width do
+      begin
+        //write(IntToHex(pd^, 2));
+        if pd^ <> 0 then pt^ := pd^;
+        Inc(pt);
+
+        inc(pd);
+      end;
+    end;
+  end;
+
+end;
+
+{$endif}
 
 procedure TfrmMain.OglboxResize(Sender : TObject);
 begin
