@@ -249,7 +249,7 @@ type
     constructor Create(aparent : TDrawGroup; awidth, aheight : integer); reintroduce;
     destructor Destroy; override;
 
-    procedure Clear(acolor : TColorUint);
+    procedure Clear(avalue : byte);
 
     procedure UpdateTexture;
 
@@ -260,11 +260,8 @@ type
 
   { TTextBox }
 
-  TTextBox = class(TDrawable)
+  TTextBox = class(TAlphaMap)
   public
-    width  : integer;
-    height : integer;
-    needsupdate : boolean;
 
     text : string;
 
@@ -1142,6 +1139,7 @@ begin
   vbo[1] := -1;
 
   GetMem(data, width * height * 1);
+  Clear(0);
 end;
 
 destructor TAlphaMap.Destroy;
@@ -1205,10 +1203,11 @@ begin
 
 end;
 
-procedure TAlphaMap.Clear(acolor : TColorUint);
+procedure TAlphaMap.Clear(avalue : byte);
 begin
   if data = nil then EXIT;
-  FillDWord(data^, width * height, acolor);
+
+  FillByte(data^, width * height, avalue);
   needsupdate := true;
 end;
 
@@ -1252,9 +1251,7 @@ end;
 
 constructor TTextBox.Create(aparent : TDrawGroup; awidth, aheight : integer; atext : string);
 begin
-  inherited Create(aparent);
-  width := awidth;
-  height := aheight;
+  inherited Create(aparent, awidth, aheight);
   text := atext;
 
   needsupdate := true;
@@ -1262,12 +1259,13 @@ end;
 
 destructor TTextBox.Destroy;
 begin
-  inherited Destroy;
+  inherited;
 end;
 
 procedure TTextBox.Draw(const apmatrix : TMatrix; apalpha : TddFloat);
 begin
 
+  inherited;
 end;
 
 
