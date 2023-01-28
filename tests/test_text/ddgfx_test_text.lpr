@@ -10,7 +10,7 @@ uses
   athreads,
   {$ENDIF}
   Interfaces, // this includes the LCL widgetset
-  Forms, lazopenglcontext, formMain;
+  Forms, lazopenglcontext, formMain, ddgfx_font;
 
 {$R *.res}
 
