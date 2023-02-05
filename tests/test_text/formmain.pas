@@ -54,7 +54,7 @@ var
 
 implementation
 
-uses dglOpenGL, freetype;
+uses dglOpenGL, freetypex, ddgfx_font;
 
 {$R *.lfm}
 
@@ -72,12 +72,13 @@ begin
   scene.bgcolor.g := 0.4;
   scene.bgcolor.b := 0.2;
 
-  txt := TTextBox.Create(scene.root, 200, 100, 'Hello World!');
+  txt := TTextBox.Create(scene.root, 'Hello World! Agy');
   txt.x := 10;
   txt.y := 10;
-  txt.Clear(16);
+  txt.scalex := 1; //8 * 2;
+  txt.scaley := 1; //8 * 2;
 
-  RenderChar;
+  //RenderChar;
 
   scene.OnResize := @OglboxResize;
 
@@ -174,10 +175,10 @@ begin
   FT_Done_Glyph(glyph);
 end;
 
-{$else}
+{$elseif 0}
 
 var
-  ftmgr : TFontManager;
+  ftmgr : freetypex.TFontManager;
 
 procedure TfrmMain.RenderChar;
 var
@@ -194,19 +195,21 @@ var
 
   i : integer;
 begin
-  ftmgr := TFontManager.Create;
+  ftmgr := freetypex.TFontManager.Create;
 {
   writeln('searching font...');
   s := ftmgr.SearchFont('liberationserif', false);
   writeln(' = ', s);
 }
-  fid := ftmgr.RequestFont('liberationserif');
-  writeln('fid=',fid);
+  //fid := ftmgr.RequestFont('liberationserif');
+  fid := ftmgr.RequestFont('LiberationSans-Regular.ttf');
 
-  sbm := ftmgr.GetStringGray(fid, txt.text, 12);
+  s := txt.Text;
+
+  sbm := ftmgr.GetStringGray(fid, s, 12);
 
   tx := 10;
-  ty := 10;
+  ty := 20;
 
   for i := 0 to sbm.Count-1 do
   begin
@@ -227,6 +230,66 @@ begin
         inc(pd);
       end;
     end;
+  end;
+
+end;
+
+{$else}
+
+procedure TfrmMain.RenderChar;
+var
+  pt : pbyte;
+  pd : pbyte;
+  tx, ty : integer;
+  w, h : integer;
+
+  face : TFontFace;
+  sface : TSizedFont;
+
+  gbmp : TGlyphBitmap;
+
+  s : string;
+  i : integer;
+
+begin
+
+  exit;
+
+  InitFontManager;
+
+  //face := fontmanager.GetFont('liberationserif.ttf');
+  face := fontmanager.GetFont('LiberationSans-Regular.ttf');
+
+  writeln('font found.');
+  sface := face.GetSizedFont(16);
+
+  s := '1234567890';
+  //s := txt.ftext;
+
+  tx := 0;
+
+  ty := 15;
+
+  for i := 1 to length(s) do
+  begin
+    gbmp := sface.GetGlyphBmp(s[i]);
+
+    pd := gbmp.data;
+    for h := 1 to gbmp.height do
+    begin
+      pt := txt.data;
+      Inc(pt, txt.width * (h + ty - gbmp.y));
+      Inc(pt, 5 + tx + gbmp.x);
+      for w := 1 to gbmp.width do
+      begin
+        pt^ := pd^;
+        Inc(pt);
+        inc(pd);
+      end;
+    end;
+
+    tx += gbmp.advanceX;
+
   end;
 
 end;

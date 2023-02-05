@@ -31,7 +31,7 @@ unit ddgfx;
 interface
 
 uses
-  Classes, SysUtils, Controls, dglOpenGL, OpenGLContext, util_nstime;
+  Classes, SysUtils, Controls, dglOpenGL, OpenGLContext, ddgfx_font, util_nstime;
 
 type
   TddFloat    = TGLfloat;
@@ -238,8 +238,9 @@ type
     procedure AllocateTexture;
 
   public
-    width  : integer;
-    height : integer;
+    width     : integer;
+    height    : integer;
+
     needsupdate : boolean;
 
     color : TColorGL;  // white by default
@@ -255,20 +256,37 @@ type
 
     procedure Draw(const apmatrix : TMatrix; apalpha : TddFloat); override;
 
+    procedure SetSize(awidth, aheight : integer);
+
   end;
 
 
   { TTextBox }
 
   TTextBox = class(TAlphaMap)
+  private
+    procedure SetText(AValue : UnicodeString);
+  protected
+    fface  : TFontFace;
+    fsface : TSizedFont;
+
+    ftext : UnicodeString;
+    frendertext : boolean;
+
+    procedure DoRenderText;
   public
+    font_size : single;
+    font_name : string;
 
-    text : string;
+    text_width  : integer; // might be smaller than width / height
+    text_height : integer;
 
-    constructor Create(aparent : TDrawGroup; awidth, aheight : integer; atext : string); reintroduce;
+    constructor Create(aparent : TDrawGroup; atext : UnicodeString); reintroduce;
     destructor Destroy; override;
 
     procedure Draw(const apmatrix : TMatrix; apalpha : TddFloat); override;
+
+    property Text : UnicodeString read ftext write SetText;
 
   end;
 
@@ -370,6 +388,9 @@ const
   ddcolor_red   : TddColorGL = (r:1; g:0; b:0; a:1);
   ddcolor_green : TddColorGL = (r:0; g:1; b:0; a:1);
   ddcolor_blue  : TddColorGL = (r:0; g:0; b:1; a:1);
+
+  default_font_size : single = 9.0;
+  default_font_name : string = 'LiberationSans-Regular.ttf';
 
 procedure ddmat_identity(out mat : TMatrix);
 procedure ddmat_mul(out mat : TMatrix; const mat1, mat2 : TMatrix); overload; // ensure that mat <> mat1 !!!
@@ -1039,8 +1060,15 @@ begin
   glGenTextures(1, @texhandle);
 
   glBindTexture(GL_TEXTURE_2D, texhandle);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+  {$if 1}
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  {$else}
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+  {$endif}
+
 
   glGenVertexArrays(1, @vao);
   glGenBuffers(2, @vbo);
@@ -1116,6 +1144,7 @@ begin
 
   if needsupdate then UpdateTexture;
 
+
   glBindVertexArray(vao);
   glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 
@@ -1129,8 +1158,6 @@ begin
 
   texhandle := 0;
   needsupdate := true;
-  width := awidth;
-  height := aheight;
 
   color := ddcolor_white;
 
@@ -1138,7 +1165,11 @@ begin
   vbo[0] := -1;
   vbo[1] := -1;
 
-  GetMem(data, width * height * 1);
+  width := -1;
+  height := -1;
+  data := nil;
+
+  SetSize(awidth, aheight);
   Clear(0);
 end;
 
@@ -1165,8 +1196,8 @@ begin
   glGenTextures(1, @texhandle);
 
   glBindTexture(GL_TEXTURE_2D, texhandle);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
   glGenVertexArrays(1, @vao);
   glGenBuffers(2, @vbo);
@@ -1181,9 +1212,9 @@ begin
   framevert[3][1] := height - 1;
 
   glBindVertexArray(vao);
-
   glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
   glBufferData(GL_ARRAY_BUFFER, 4 * sizeof(TVertex), @framevert[0], GL_STATIC_DRAW);
+
   glEnableVertexAttribArray(attrloc_position);
   glVertexAttribPointer(attrloc_position, 2, GL_FLOAT, false, 0, nil);
 
@@ -1212,11 +1243,26 @@ begin
 end;
 
 procedure TAlphaMap.UpdateTexture;
+var
+  framevert  : array[0..3] of TVertex;
 begin
   if texhandle = 0 then AllocateTexture;
 
   glBindTexture(GL_TEXTURE_2D, texhandle);
   glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, width, height, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE, data);
+
+  framevert[0][0] := 0;
+  framevert[0][1] := 0;
+  framevert[1][0] := width;
+  framevert[1][1] := 0;
+  framevert[2][0] := width;
+  framevert[2][1] := height;
+  framevert[3][0] := 0;
+  framevert[3][1] := height;
+
+  glBindVertexArray(vao);
+  glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
+  glBufferData(GL_ARRAY_BUFFER, 4 * sizeof(TVertex), @framevert[0], GL_STATIC_DRAW);
 
   needsupdate := false;
 end;
@@ -1242,19 +1288,67 @@ begin
 
   if needsupdate then UpdateTexture;
 
+
+  {$if 0}
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  {$else}
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+  {$endif}
+
   glBindVertexArray(vao);
   glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 
 end;
 
+procedure TAlphaMap.SetSize(awidth, aheight : integer);
+begin
+  awidth  := ((awidth  + 3) and $FFFFC);
+  aheight := ((aheight + 3) and $FFFFC);
+
+  if (awidth = width) and (aheight = height)
+  then
+      Exit;
+
+  width  := awidth;
+  height := aheight;
+
+  if data <> nil then FreeMem(data);
+  GetMem(data, width * height);
+end;
+
 { TTextBox }
 
-constructor TTextBox.Create(aparent : TDrawGroup; awidth, aheight : integer; atext : string);
+procedure TTextBox.SetText(AValue : UnicodeString);
 begin
-  inherited Create(aparent, awidth, aheight);
-  text := atext;
+  if ftext = AValue then Exit;
+
+  ftext := AValue;
+  frendertext := true;
+end;
+
+procedure TTextBox.DoRenderText;
+begin
+
+end;
+
+constructor TTextBox.Create(aparent : TDrawGroup; atext : UnicodeString);
+begin
+  inherited Create(aparent, 4, 4);  // start with some dummy size
+  ftext := atext;
+
+  font_size := default_font_size;
+  font_name := default_font_name;
+
+  text_width  := 0;
+  text_height := 0;
+
+  fface  := nil;
+  fsface := nil; // will be allocated on draw
 
   needsupdate := true;
+  frendertext := true;
 end;
 
 destructor TTextBox.Destroy;
@@ -1264,6 +1358,30 @@ end;
 
 procedure TTextBox.Draw(const apmatrix : TMatrix; apalpha : TddFloat);
 begin
+  if fface = nil then
+  begin
+    InitFontManager;
+    fface := fontmanager.GetFont(font_name); // will raise an exception on error
+    frendertext := true;
+  end;
+  if fsface = nil then
+  begin
+    fsface := fface.GetSizedFont(font_size);
+    frendertext := true;
+  end;
+
+  if frendertext then
+  begin
+    text_width  := fsface.TextWidth(ftext);
+    text_height := fsface.Height;
+    SetSize(text_width, text_height);
+    Clear(0);
+    fsface.RenderToAlphaBmp(ftext, 0, 0, data, width, height);
+    //writeln('Font height: ', fsface.Height);
+    //writeln('Font asc   : ', fsface.Ascender);
+    //writeln('Font desc  : ', fsface.Descender);
+    needsupdate := true;
+  end;
 
   inherited;
 end;
