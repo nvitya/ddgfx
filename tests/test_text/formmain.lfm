@@ -29,6 +29,31 @@ object frmMain: TfrmMain
       OnClick = btnExitClick
       TabOrder = 0
     end
+    object edX: TEdit
+      Left = 20
+      Height = 25
+      Top = 12
+      Width = 59
+      TabOrder = 1
+      Text = '10'
+    end
+    object edY: TEdit
+      Left = 92
+      Height = 25
+      Top = 12
+      Width = 59
+      TabOrder = 2
+      Text = '10'
+    end
+    object btnSet: TButton
+      Left = 160
+      Height = 25
+      Top = 12
+      Width = 75
+      Caption = 'Set X,Y'
+      OnClick = btnSetClick
+      TabOrder = 3
+    end
   end
   object oglpanel: TPanel
     Left = 0
@@ -45,7 +70,7 @@ object frmMain: TfrmMain
     Enabled = False
     Interval = 10
     OnTimer = drawtimerTimer
-    Left = 163
-    Top = 433
+    Left = 588
+    Top = 368
   end
 end

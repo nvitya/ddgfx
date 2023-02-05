@@ -18,10 +18,14 @@ type
     oglpanel : TPanel;
     pnl : TPanel;
     drawtimer : TTimer;
+    edX : TEdit;
+    edY : TEdit;
+    btnSet : TButton;
     procedure btnExitClick(Sender : TObject);
     procedure drawtimerTimer(Sender : TObject);
     procedure FormCreate(Sender : TObject);
     procedure FormDestroy(Sender : TObject);
+    procedure btnSetClick(Sender : TObject);
   private
 
   public
@@ -97,6 +101,9 @@ begin
   // modify the shapes
   t += 1;
 
+  txt.x := 10 + 2 * sin(t / 50);
+
+{
   txt.alpha := 1 + 0.9 * sin(t / 50);
   txt.scalex := 1 + 0.5 * sin(t / 10);
   txt.scaley := txt.scalex;
@@ -108,12 +115,21 @@ begin
 
   scene.root.scalex := oglpanel.Width / origw;
   scene.root.scaley := oglpanel.Height / origh;
+}
 
   scene.Repaint;
 end;
 
 procedure TfrmMain.FormDestroy(Sender : TObject);
 begin
+end;
+
+procedure TfrmMain.btnSetClick(Sender : TObject);
+begin
+  txt.x := StrToFloatDef(edX.Text, 10);
+  txt.y := StrToFloatDef(edY.Text, 10);
+
+  scene.Repaint;
 end;
 
 {$if 0}

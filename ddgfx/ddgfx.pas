@@ -1251,6 +1251,7 @@ begin
   glBindTexture(GL_TEXTURE_2D, texhandle);
   glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, width, height, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE, data);
 
+{$if 0}
   framevert[0][0] := 0;
   framevert[0][1] := 0;
   framevert[1][0] := width;
@@ -1259,6 +1260,19 @@ begin
   framevert[2][1] := height;
   framevert[3][0] := 0;
   framevert[3][1] := height;
+{$else}
+  // the whole screen is translated with 0.5 and 0.5 pixels for the shape drawing
+  // for the textures this is not good so it should be reveted
+  // how the 0.25 comes out I'm not totally sure, but only with this value look the textures pixel aligned.
+  framevert[0][0] := -0.25;
+  framevert[0][1] := -0.25;
+  framevert[1][0] := width - 0.25;
+  framevert[1][1] := - 0.25;
+  framevert[2][0] := width - 0.25;
+  framevert[2][1] := height - 0.25;
+  framevert[3][0] := - 0.25;
+  framevert[3][1] := height - 0.25;
+{$endif}
 
   glBindVertexArray(vao);
   glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
@@ -1289,7 +1303,7 @@ begin
   if needsupdate then UpdateTexture;
 
 
-  {$if 0}
+  {$if 1}
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
   {$else}
