@@ -229,20 +229,23 @@ type
   { TAlphaMap }
 
   TAlphaMap = class(TDrawable)
+  private
+    function GetWidth : TddFloat;
+    function GetHeight : TddFloat;
   protected
     texhandle : GLint;
 
     vao : TGLint;  // vertex array object
     vbo : array[0..1] of TGLint;  // vertex buffer objects: shape, texture
 
+    fwidth        : integer;
+    fheight       : integer;
     bmp_width     : integer;
     bmp_height    : integer;
 
     procedure AllocateTexture;
 
   public
-    width     : integer;
-    height    : integer;
 
     needsupdate : boolean;
 
@@ -261,8 +264,10 @@ type
 
     procedure SetSize(awidth, aheight : integer);
 
-    property BmpWidth  : integer read bmp_width;
-    property BmpHeight : integer read bmp_height;
+    property BmpWidth  : integer  read bmp_width;
+    property BmpHeight : integer  read bmp_height;
+    property Width     : TddFloat read GetWidth;
+    property Height    : TddFloat read GetHeight;
 
   end;
 
@@ -271,29 +276,23 @@ type
 
   TTextBox = class(TAlphaMap)
   private
-    procedure SetText(AValue : UnicodeString);
+    procedure SetText(AValue : string);
   protected
-    fface  : TFontFace;
     fsface : TSizedFont;
 
-    ftext : UnicodeString;
+    ftext : string;
     frendertext : boolean;
 
     procedure DoRenderText;
   public
-    font_size : single;
-    font_name : string;
 
-    text_width  : integer; // might be smaller than width / height
-    text_height : integer;
-
-    constructor Create(aparent : TDrawGroup; atext : string); reintroduce;
+    constructor Create(aparent : TDrawGroup; afsace : TSizedFont; atext : string); reintroduce;
     destructor Destroy; override;
 
     procedure Draw(const apmatrix : TMatrix; apalpha : TddFloat); override;
 
-    property Text : UnicodeString read ftext write SetText;
-
+    property Text : string read ftext write SetText;
+    property Font : TSizedFont read fsface;
   end;
 
   { TClonedShape }
@@ -1171,9 +1170,9 @@ begin
   vbo[0] := -1;
   vbo[1] := -1;
 
-  width := -1;
+  fwidth := -1;
   bmp_width := -1;
-  height := -1;
+  fheight := -1;
   bmp_height := -1;
 
   data := nil;
@@ -1193,6 +1192,16 @@ begin
   if texhandle <> 0 then glDeleteTextures(1, @texhandle);
   FreeMem(data);
   inherited;
+end;
+
+function TAlphaMap.GetHeight : TddFloat;
+begin
+  result := fheight * scaley;
+end;
+
+function TAlphaMap.GetWidth : TddFloat;
+begin
+  result := fwidth * scalex;
 end;
 
 procedure TAlphaMap.AllocateTexture;
@@ -1232,12 +1241,12 @@ begin
   poffs := -0.25;
   framevert[0][0] := poffs;
   framevert[0][1] := poffs;
-  framevert[1][0] := width + poffs;
+  framevert[1][0] := fwidth + poffs;
   framevert[1][1] := poffs;
-  framevert[2][0] := width + poffs;
-  framevert[2][1] := height + poffs;
+  framevert[2][0] := fwidth + poffs;
+  framevert[2][1] := fheight + poffs;
   framevert[3][0] := poffs;
-  framevert[3][1] := height + poffs;
+  framevert[3][1] := fheight + poffs;
 
   glBindVertexArray(vao);
   glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
@@ -1248,8 +1257,8 @@ begin
 
   // texture coordinates
 
-  tw := width / bmp_width;  // the bmp_width might be bigger (must be divisible by 4)
-  th := height / bmp_height;
+  tw := fwidth / bmp_width;  // the bmp_width might be bigger (must be divisible by 4)
+  th := fheight / bmp_height;
 
   txtvert[0][0] := 0;
   txtvert[0][1] := 0;
@@ -1307,8 +1316,8 @@ procedure TAlphaMap.SetSize(awidth, aheight : integer);
 var
   new_bw, new_bh : integer;
 begin
-  width  := awidth;
-  height := aheight;
+  fwidth  := awidth;
+  fheight := aheight;
 
   new_bw := ((awidth  + 3) and $FFFFC);
   new_bh := ((aheight + 3) and $FFFFC);
@@ -1325,12 +1334,20 @@ end;
 
 { TTextBox }
 
-procedure TTextBox.SetText(AValue : UnicodeString);
+procedure TTextBox.SetText(AValue : string);
+var
+  text_width  : integer;
+  text_height : integer;
 begin
   if ftext = AValue then Exit;
 
   ftext := AValue;
   frendertext := true;
+
+  text_width  := fsface.TextWidth(UnicodeString(ftext));
+  text_height := fsface.Height;
+
+  SetSize(text_width, text_height);
 end;
 
 procedure TTextBox.DoRenderText;
@@ -1338,22 +1355,17 @@ begin
 
 end;
 
-constructor TTextBox.Create(aparent : TDrawGroup; atext : string);
+constructor TTextBox.Create(aparent : TDrawGroup; afsace : TSizedFont; atext : string);
 begin
   inherited Create(aparent, 4, 4);  // start with some dummy size
-  ftext := atext;
 
-  font_size := default_font_size;
-  font_name := default_font_name;
-
-  text_width  := 0;
-  text_height := 0;
-
-  fface  := nil;
-  fsface := nil; // will be allocated on draw
+  fsface := afsace;
 
   needsupdate := true;
   frendertext := true;
+
+  ftext := atext + ' ';  // something different
+  SetText(atext);
 end;
 
 destructor TTextBox.Destroy;
@@ -1363,25 +1375,10 @@ end;
 
 procedure TTextBox.Draw(const apmatrix : TMatrix; apalpha : TddFloat);
 begin
-  if fface = nil then
-  begin
-    InitFontManager;
-    fface := fontmanager.GetFont(font_name); // will raise an exception on error
-    frendertext := true;
-  end;
-  if fsface = nil then
-  begin
-    fsface := fface.GetSizedFont(font_size);
-    frendertext := true;
-  end;
-
   if frendertext then
   begin
-    text_width  := fsface.TextWidth(ftext);
-    text_height := fsface.Height;
-    SetSize(text_width, text_height);
     Clear(0);
-    fsface.RenderToAlphaBmp(ftext, 0, 0, data, bmp_width, bmp_height);
+    fsface.RenderToAlphaBmp(UnicodeString(ftext), 0, 0, data, bmp_width, bmp_height);
     //writeln('Font height: ', fsface.Height);
     //writeln('Font asc   : ', fsface.Ascender);
     //writeln('Font desc  : ', fsface.Descender);
