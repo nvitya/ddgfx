@@ -245,13 +245,13 @@ begin
     for h := 0 to gbmp.height-1 do
     begin
       dy := ty + gbmp.y + h;
-      if (dy > 0) and (dy < bmp_height) then
+      if (dy >= 0) and (dy < bmp_height) then
       begin
         pty := bmp + bmp_width * dy;
         for w := 0 to gbmp.width-1 do
         begin
           dx := tx + gbmp.x + w;
-          if (dx > 0) and (dx < bmp_width) then
+          if (dx >= 0) and (dx < bmp_width) then
           begin
             ptx := pty + dx;
             pd := gbmp.data + h * gbmp.width + w;
