@@ -1,3 +1,5 @@
+// coding: UTF-8
+
 unit formMain;
 
 {$mode objfpc}{$H+}
@@ -31,7 +33,8 @@ type
   public
     scene : TddScene;
 
-    txt : TTextBox;
+    txt, txt2 : TTextBox;
+    am  : TAlphaMap;
 
     t : single; // time
 
@@ -47,6 +50,8 @@ type
     bmglyph : PFT_BitmapGlyph;
 
     procedure RenderChar;
+
+    procedure MakeAlphaMap;
 
 
     procedure OglboxResize(Sender: TObject);
@@ -76,17 +81,28 @@ begin
   scene.bgcolor.g := 0.4;
   scene.bgcolor.b := 0.2;
 
-  txt := TTextBox.Create(scene.root, 'Hello World! Agy');
-  txt.x := 10;
-  txt.y := 10;
+  txt := TTextBox.Create(scene.root, 'Hello World! éáőúöüóÉÁŐÚŰÖÜÓ Agy');
+  txt.x := 1;
+  txt.y := 1;
   txt.scalex := 1; //8 * 2;
   txt.scaley := 1; //8 * 2;
+
+  txt2 := TTextBox.Create(scene.root, 'Text 2');
+  txt2.font_name := 'liberationserif.ttf';
+  txt2.font_size := 18;
+  txt2.x := 100;
+  txt2.y := 100;
+
+  am := TAlphaMap.Create(scene.root, 403, 303);
+  am.x := 32;
+  am.y := 32;
+  MakeAlphaMap;
 
   //RenderChar;
 
   scene.OnResize := @OglboxResize;
 
-  //drawtimer.Enabled := true;
+  drawtimer.Enabled := true;
   t := 0;
 end;
 
@@ -101,7 +117,10 @@ begin
   // modify the shapes
   t += 1;
 
-  txt.x := 10 + 2 * sin(t / 50);
+  //txt.x := 10 + 2 * sin(t / 50);
+
+  txt2.Text := 'txt2 value = '+FloatToStr(t);
+  txt.Text := string('Hello World! éáőúöüóÉÁŐÚŰÖÜÓ Agy') + IntToStr(trunc(t) mod 20);
 
 {
   txt.alpha := 1 + 0.9 * sin(t / 50);
@@ -308,6 +327,23 @@ begin
 
   end;
 
+end;
+
+procedure TfrmMain.MakeAlphaMap;
+var
+  i, maxi : integer;
+  bp : PByte;
+begin
+  i := 0;
+  am.Clear(0);
+  maxi := am.BmpWidth * am.BmpHeight;
+  while i < maxi do
+  begin
+    bp := am.data + i;
+    bp^ := 255;
+
+    inc(i, 77);
+  end;
 end;
 
 {$endif}

@@ -267,17 +267,17 @@ end;
 
 function TSizedFont.Height : integer;
 begin
-  result := (metrics.height shr 6);
+  result := ((metrics.height + 63) shr 6);
 end;
 
 function TSizedFont.Ascender : integer;
 begin
-  result := (metrics.ascender shr 6);
+  result := ((metrics.ascender + 63) shr 6);
 end;
 
 function TSizedFont.Descender : integer;
 begin
-  result := -(metrics.descender shr 6);
+  result := -((metrics.descender + 63) shr 6);
 end;
 
 { TFontFace }

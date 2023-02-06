@@ -235,6 +235,9 @@ type
     vao : TGLint;  // vertex array object
     vbo : array[0..1] of TGLint;  // vertex buffer objects: shape, texture
 
+    bmp_width     : integer;
+    bmp_height    : integer;
+
     procedure AllocateTexture;
 
   public
@@ -257,6 +260,9 @@ type
     procedure Draw(const apmatrix : TMatrix; apalpha : TddFloat); override;
 
     procedure SetSize(awidth, aheight : integer);
+
+    property BmpWidth  : integer read bmp_width;
+    property BmpHeight : integer read bmp_height;
 
   end;
 
@@ -281,7 +287,7 @@ type
     text_width  : integer; // might be smaller than width / height
     text_height : integer;
 
-    constructor Create(aparent : TDrawGroup; atext : UnicodeString); reintroduce;
+    constructor Create(aparent : TDrawGroup; atext : string); reintroduce;
     destructor Destroy; override;
 
     procedure Draw(const apmatrix : TMatrix; apalpha : TddFloat); override;
@@ -1166,7 +1172,10 @@ begin
   vbo[1] := -1;
 
   width := -1;
+  bmp_width := -1;
   height := -1;
+  bmp_height := -1;
+
   data := nil;
 
   SetSize(awidth, aheight);
@@ -1187,29 +1196,48 @@ begin
 end;
 
 procedure TAlphaMap.AllocateTexture;
-var
-  framevert  : array[0..3] of TVertex;
-  txtvert    : array[0..3] of TVertex;
 begin
   if texhandle <> 0 then Exit;
 
   glGenTextures(1, @texhandle);
 
   glBindTexture(GL_TEXTURE_2D, texhandle);
-  //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-  //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
   glGenVertexArrays(1, @vao);
   glGenBuffers(2, @vbo);
+end;
 
-  framevert[0][0] := 0;
-  framevert[0][1] := 0;
-  framevert[1][0] := width - 1;
-  framevert[1][1] := 0;
-  framevert[2][0] := width - 1;
-  framevert[2][1] := height - 1;
-  framevert[3][0] := 0;
-  framevert[3][1] := height - 1;
+procedure TAlphaMap.Clear(avalue : byte);
+begin
+  if data = nil then EXIT;
+
+  FillByte(data^, bmp_width * bmp_height, avalue);
+  needsupdate := true;
+end;
+
+procedure TAlphaMap.UpdateTexture;
+var
+  framevert  : array[0..3] of TVertex;
+  txtvert    : array[0..3] of TVertex;
+  tw, th, poffs     : single;
+begin
+  if texhandle = 0 then AllocateTexture;
+
+  glBindTexture(GL_TEXTURE_2D, texhandle);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, bmp_width, bmp_height, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE, data);
+
+  // the whole screen is translated with 0.5 and 0.5 pixels for the shape drawing
+  // for the textures this is not good so it should be reveted
+  // how the 0.25 comes out I'm not totally sure, but only with this value look the textures pixel aligned.
+  poffs := -0.25;
+  framevert[0][0] := poffs;
+  framevert[0][1] := poffs;
+  framevert[1][0] := width + poffs;
+  framevert[1][1] := poffs;
+  framevert[2][0] := width + poffs;
+  framevert[2][1] := height + poffs;
+  framevert[3][0] := poffs;
+  framevert[3][1] := height + poffs;
 
   glBindVertexArray(vao);
   glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
@@ -1218,65 +1246,25 @@ begin
   glEnableVertexAttribArray(attrloc_position);
   glVertexAttribPointer(attrloc_position, 2, GL_FLOAT, false, 0, nil);
 
+  // texture coordinates
+
+  tw := width / bmp_width;  // the bmp_width might be bigger (must be divisible by 4)
+  th := height / bmp_height;
+
   txtvert[0][0] := 0;
   txtvert[0][1] := 0;
-  txtvert[1][0] := 1;
+  txtvert[1][0] := tw;
   txtvert[1][1] := 0;
-  txtvert[2][0] := 1;
-  txtvert[2][1] := 1;
+  txtvert[2][0] := tw;
+  txtvert[2][1] := th;
   txtvert[3][0] := 0;
-  txtvert[3][1] := 1;
+  txtvert[3][1] := th;
 
   glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);
   glBufferData(GL_ARRAY_BUFFER, 4 * sizeof(TVertex), @txtvert[0], GL_STATIC_DRAW);
+
   glEnableVertexAttribArray(attrloc_texcoordinate);
   glVertexAttribPointer(attrloc_texcoordinate, 2, GL_FLOAT, false, 0, nil);
-
-end;
-
-procedure TAlphaMap.Clear(avalue : byte);
-begin
-  if data = nil then EXIT;
-
-  FillByte(data^, width * height, avalue);
-  needsupdate := true;
-end;
-
-procedure TAlphaMap.UpdateTexture;
-var
-  framevert  : array[0..3] of TVertex;
-begin
-  if texhandle = 0 then AllocateTexture;
-
-  glBindTexture(GL_TEXTURE_2D, texhandle);
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, width, height, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE, data);
-
-{$if 0}
-  framevert[0][0] := 0;
-  framevert[0][1] := 0;
-  framevert[1][0] := width;
-  framevert[1][1] := 0;
-  framevert[2][0] := width;
-  framevert[2][1] := height;
-  framevert[3][0] := 0;
-  framevert[3][1] := height;
-{$else}
-  // the whole screen is translated with 0.5 and 0.5 pixels for the shape drawing
-  // for the textures this is not good so it should be reveted
-  // how the 0.25 comes out I'm not totally sure, but only with this value look the textures pixel aligned.
-  framevert[0][0] := -0.25;
-  framevert[0][1] := -0.25;
-  framevert[1][0] := width - 0.25;
-  framevert[1][1] := - 0.25;
-  framevert[2][0] := width - 0.25;
-  framevert[2][1] := height - 0.25;
-  framevert[3][0] := - 0.25;
-  framevert[3][1] := height - 0.25;
-{$endif}
-
-  glBindVertexArray(vao);
-  glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
-  glBufferData(GL_ARRAY_BUFFER, 4 * sizeof(TVertex), @framevert[0], GL_STATIC_DRAW);
 
   needsupdate := false;
 end;
@@ -1302,7 +1290,6 @@ begin
 
   if needsupdate then UpdateTexture;
 
-
   {$if 1}
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -1317,19 +1304,23 @@ begin
 end;
 
 procedure TAlphaMap.SetSize(awidth, aheight : integer);
+var
+  new_bw, new_bh : integer;
 begin
-  awidth  := ((awidth  + 3) and $FFFFC);
-  aheight := ((aheight + 3) and $FFFFC);
-
-  if (awidth = width) and (aheight = height)
-  then
-      Exit;
-
   width  := awidth;
   height := aheight;
 
+  new_bw := ((awidth  + 3) and $FFFFC);
+  new_bh := ((aheight + 3) and $FFFFC);
+  if (new_bw = bmp_width) and (new_bh = bmp_height)
+  then
+      Exit;
+
+  bmp_width  := new_bw;
+  bmp_height := new_bh;
+
   if data <> nil then FreeMem(data);
-  GetMem(data, width * height);
+  GetMem(data, bmp_width * bmp_height);
 end;
 
 { TTextBox }
@@ -1347,7 +1338,7 @@ begin
 
 end;
 
-constructor TTextBox.Create(aparent : TDrawGroup; atext : UnicodeString);
+constructor TTextBox.Create(aparent : TDrawGroup; atext : string);
 begin
   inherited Create(aparent, 4, 4);  // start with some dummy size
   ftext := atext;
@@ -1390,7 +1381,7 @@ begin
     text_height := fsface.Height;
     SetSize(text_width, text_height);
     Clear(0);
-    fsface.RenderToAlphaBmp(ftext, 0, 0, data, width, height);
+    fsface.RenderToAlphaBmp(ftext, 0, 0, data, bmp_width, bmp_height);
     //writeln('Font height: ', fsface.Height);
     //writeln('Font asc   : ', fsface.Ascender);
     //writeln('Font desc  : ', fsface.Descender);
