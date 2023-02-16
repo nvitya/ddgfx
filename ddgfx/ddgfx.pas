@@ -184,6 +184,7 @@ type
   TShape = class(TDrawable)
   public
     color : TColorGL;  // white by default
+    linewidth : TddFloat;
     primitives : array of TPrimitive;
 
     constructor Create(aparent : TDrawGroup); override;
@@ -262,6 +263,9 @@ type
 
     procedure Draw(const apmatrix : TMatrix; apalpha : TddFloat); override;
 
+    procedure SetColor(r, g, b : TddFloat); overload;
+    procedure SetColor(r, g, b, a : TddFloat); overload;
+
     procedure SetSize(awidth, aheight : integer);
 
     property BmpWidth  : integer  read bmp_width;
@@ -334,6 +338,12 @@ type
     function CloneShape(aoriginal : TShape) : TClonedShape;
     function CloneGroup(aoriginal : TDrawGroup) : TClonedGroup;
 
+    procedure MoveTo(aobj : TDrawable; topos : integer);
+    procedure MoveTop(aobj : TDrawable);
+    procedure MoveBottom(aobj : TDrawable);
+
+    function FindIndex(aobj : TDrawable) : integer;
+
   end;
 
   { TClonedGroup }
@@ -393,9 +403,6 @@ const
   ddcolor_red   : TddColorGL = (r:1; g:0; b:0; a:1);
   ddcolor_green : TddColorGL = (r:0; g:1; b:0; a:1);
   ddcolor_blue  : TddColorGL = (r:0; g:0; b:1; a:1);
-
-  default_font_size : single = 9.0;
-  default_font_name : string = 'LiberationSans-Regular.ttf';
 
 procedure ddmat_identity(out mat : TMatrix);
 procedure ddmat_mul(out mat : TMatrix; const mat1, mat2 : TMatrix); overload; // ensure that mat <> mat1 !!!
@@ -899,6 +906,7 @@ begin
   inherited Create(aparent);
 
   color := ddcolor_white;  // white is the default color
+  linewidth := 1;
 
   SetLength(primitives, 0);
 end;
@@ -930,6 +938,7 @@ begin
   color.r := r;
   color.b := b;
   color.g := g;
+  color.a := 1;
 end;
 
 procedure TShape.SetColor(r, g, b, a : TddFloat);
@@ -958,6 +967,8 @@ begin
   // pass the matrix to the shader
   shader_fixcolor.SetMVPMatrix(rmatrix);
   shader_fixcolor.SetColor(color.r, color.g, color.b, color.a * ralpha);
+
+  glLineWidth(linewidth);
 
   for dprim in primitives do
   begin
@@ -990,6 +1001,7 @@ begin
   color.r := r;
   color.b := b;
   color.g := g;
+  color.a := 1;
 end;
 
 procedure TClonedShape.SetColor(r, g, b, a : TddFloat);
@@ -1312,6 +1324,22 @@ begin
 
 end;
 
+procedure TAlphaMap.SetColor(r, g, b : TddFloat);
+begin
+  color.r := r;
+  color.b := b;
+  color.g := g;
+  color.a := 1;
+end;
+
+procedure TAlphaMap.SetColor(r, g, b, a : TddFloat);
+begin
+  color.r := r;
+  color.b := b;
+  color.g := g;
+  color.a := a;
+end;
+
 procedure TAlphaMap.SetSize(awidth, aheight : integer);
 var
   new_bw, new_bh : integer;
@@ -1476,6 +1504,37 @@ end;
 function TDrawGroup.CloneGroup(aoriginal : TDrawGroup) : TClonedGroup;
 begin
   result := TClonedGroup.Create(self, aoriginal);
+end;
+
+procedure TDrawGroup.MoveTo(aobj : TDrawable; topos : integer);
+var
+  si : integer;
+begin
+  si := FindIndex(aobj);
+  if si < 0 then EXIT;
+  delete(children, si, 1);
+  insert(aobj, children, topos);
+end;
+
+procedure TDrawGroup.MoveTop(aobj : TDrawable);
+begin
+  MoveTo(aobj, length(children));
+end;
+
+procedure TDrawGroup.MoveBottom(aobj : TDrawable);
+begin
+  MoveTo(aobj, 0);
+end;
+
+function TDrawGroup.FindIndex(aobj : TDrawable) : integer;
+var
+  i : integer;
+begin
+  for i := 0 to length(children) do
+  begin
+    if children[i] = aobj then EXIT(i);
+  end;
+  result := -1;
 end;
 
 { TClonedGroup }
